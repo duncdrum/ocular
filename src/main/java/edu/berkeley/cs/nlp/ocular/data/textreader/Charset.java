@@ -1,9 +1,16 @@
 package edu.berkeley.cs.nlp.ocular.data.textreader;
 
+import static edu.berkeley.cs.nlp.ocular.util.CollectionHelper.makeMap;
 import static edu.berkeley.cs.nlp.ocular.util.CollectionHelper.makeSet;
+import static edu.berkeley.cs.nlp.ocular.util.CollectionHelper.setUnion;
+import static edu.berkeley.cs.nlp.ocular.util.CollectionHelper.*;
+import static edu.berkeley.cs.nlp.ocular.util.StringHelper.*;
+import static edu.berkeley.cs.nlp.ocular.util.Tuple2.Tuple2;
+import static edu.berkeley.cs.nlp.ocular.util.Tuple3.Tuple3;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,18 +18,20 @@ import java.util.Set;
 import edu.berkeley.cs.nlp.ocular.util.StringHelper;
 import edu.berkeley.cs.nlp.ocular.util.Tuple2;
 import edu.berkeley.cs.nlp.ocular.util.Tuple3;
-
-import static edu.berkeley.cs.nlp.ocular.util.Tuple2.makeTuple2;
-import static edu.berkeley.cs.nlp.ocular.util.Tuple3.makeTuple3;
+import indexer.Indexer;
 
 /**
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class Charset {
 
 	public static final String SPACE = " ";
 	public static final String HYPHEN = "-";
+	public static final Set<String> LOWERCASE_LATIN_LETTERS = makeSet("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z");
+	public static final Set<String> LOWERCASE_VOWELS = makeSet("a", "e", "i", "o", "u");
+	public static final Map<String,String> LIGATURES = makeMap(Tuple2("Æ","AE"), Tuple2("æ","ae"), Tuple2("Œ","OE"), Tuple2("œ","oe"));
 	public static final String LONG_S = "\u017F"; // ſ
+	public static final Set<String> BANNED_CHARS = makeSet("@", "$", "%");
 	/**
 	 * Punctuation symbols that should be made available for any language, 
 	 * regardless of whether they are seen in the language model training 
@@ -214,7 +223,104 @@ public class Charset {
 		for (Map.Entry<String, String> entry : PRECOMPOSED_TO_ESCAPED_MAP.entrySet())
 			ESCAPED_TO_PRECOMPOSED_MAP.put(entry.getValue(), entry.getKey());
 	}
-
+	
+	public static final Set<String> CHARS_THAT_CAN_BE_REPLACED = setUnion(LOWERCASE_LATIN_LETTERS, makeSet("ç")); // TODO: Change this?
+	public static final Set<String> VALID_CHAR_SUBSTITUTIONS = LOWERCASE_LATIN_LETTERS; // TODO: Change this?
+	public static final Set<String> CHARS_THAT_CAN_DOUBLED = LOWERCASE_LATIN_LETTERS; // TODO: Change this?
+	public static final Set<String> CHARS_THAT_CAN_BE_DECORATED_WITH_AN_ELISION_TILDE = LOWERCASE_LATIN_LETTERS; // TODO: Change this?
+	public static final Set<String> CHARS_THAT_CAN_BE_ELIDED = LOWERCASE_LATIN_LETTERS; // TODO: Change this?
+	public static final Set<String> ESCAPE_DIACRITICS_THAT_CAN_BE_DISREGARDED = makeSet(GRAVE_ESCAPE, ACUTE_ESCAPE);
+	public static final Set<String> LETTERS_WITH_DISREGARDEDABLE_DIACRITICS = LOWERCASE_VOWELS;
+	
+	public static Set<Integer> makePunctSet(Indexer<String> charIndexer) {
+		Set<Integer> punctSet = new HashSet<Integer>();
+		for (String c : charIndexer.getObjects()) {
+			if (Charset.isPunctuationChar(c))
+				punctSet.add(charIndexer.getIndex(c));
+		}
+		return punctSet;
+	}
+	public static Set<Integer> makeCanBeReplacedSet(Indexer<String> charIndexer) {
+		Set<Integer> canBeReplaced = new HashSet<Integer>();
+		for (String c : charIndexer.getObjects()) {
+			if (Charset.CHARS_THAT_CAN_BE_REPLACED.contains(c))
+				canBeReplaced.add(charIndexer.getIndex(c));
+		}
+		return canBeReplaced;
+	}
+	public static Set<Integer> makeValidSubstitutionCharsSet(Indexer<String> charIndexer) {
+		Set<Integer> validSubstitutionChars = new HashSet<Integer>();
+		for (String c : charIndexer.getObjects()) {
+			if (Charset.VALID_CHAR_SUBSTITUTIONS.contains(c))
+				validSubstitutionChars.add(charIndexer.getIndex(c));
+		}
+		return validSubstitutionChars;
+	}
+	public static Set<Integer> makeValidDoublableSet(Indexer<String> charIndexer) {
+		Set<Integer> validDoublableChars = new HashSet<Integer>();
+		for (String c : charIndexer.getObjects()) {
+			if (Charset.CHARS_THAT_CAN_DOUBLED.contains(c))
+				validDoublableChars.add(charIndexer.getIndex(c));
+		}
+		return validDoublableChars;
+	}
+	public static Set<Integer> makeCanBeElidedSet(Indexer<String> charIndexer) {
+		Set<Integer> canBeElided = new HashSet<Integer>();
+		for (String c : charIndexer.getObjects()) {
+			if (Charset.CHARS_THAT_CAN_BE_ELIDED.contains(c))
+				canBeElided.add(charIndexer.getIndex(c));
+		}
+		return canBeElided;
+	}
+	public static Map<Integer,Integer> makeAddTildeMap(Indexer<String> charIndexer) {
+		Map<Integer,Integer> m = new HashMap<Integer, Integer>();
+		for (String original : charIndexer.getObjects()) {
+			Tuple2<List<String>,String> originalEscapedDiacriticsAndLetter = Charset.escapeCharSeparateDiacritics(original);
+			String baseLetter = originalEscapedDiacriticsAndLetter._2;
+			if (Charset.CHARS_THAT_CAN_BE_DECORATED_WITH_AN_ELISION_TILDE.contains(original)) {
+					m.put(charIndexer.getIndex(original), charIndexer.getIndex(Charset.TILDE_ESCAPE + baseLetter));
+			}
+			else if (LETTERS_WITH_DISREGARDEDABLE_DIACRITICS.contains(baseLetter)) {
+				for (String diacritic : originalEscapedDiacriticsAndLetter._1) {
+					if (ESCAPE_DIACRITICS_THAT_CAN_BE_DISREGARDED.contains(diacritic)) {
+						m.put(charIndexer.getIndex(original), charIndexer.getIndex(Charset.TILDE_ESCAPE + baseLetter));
+						break;
+					}
+				}
+			}
+		}
+		return m;
+	}
+	public static Map<Integer,List<Integer>> makeLigatureMap(Indexer<String> charIndexer) {
+		Map<Integer,List<Integer>> m = new HashMap<Integer, List<Integer>>();
+		for (Map.Entry<String,String> entry : Charset.LIGATURES.entrySet()) {
+			List<String> ligature = readCharacters(entry.getKey());
+			if (ligature.size() > 1) throw new RuntimeException("Ligature ["+entry.getKey()+"] has more than one character: "+ligature);
+			List<Integer> l = new ArrayList<Integer>();
+			for (String c : readCharacters(entry.getValue()))
+				l.add(charIndexer.getIndex(c));
+			m.put(charIndexer.getIndex(ligature.get(0)), l);
+		}
+		return m;
+	}
+	public static Map<Integer,Integer> makeDiacriticDisregardMap(Indexer<String> charIndexer) {
+		Map<Integer,Integer> m = new HashMap<Integer,Integer>();
+		for (String original : charIndexer.getObjects()) { // find accented letters
+			Tuple2<List<String>,String> originalEscapedDiacriticsAndLetter = escapeCharSeparateDiacritics(original);
+			String baseLetter = originalEscapedDiacriticsAndLetter._2;
+			if (LETTERS_WITH_DISREGARDEDABLE_DIACRITICS.contains(baseLetter)) {
+				for (String diacritic : originalEscapedDiacriticsAndLetter._1) {
+					if (ESCAPE_DIACRITICS_THAT_CAN_BE_DISREGARDED.contains(diacritic)) {
+						m.put(charIndexer.getIndex(original), charIndexer.getIndex(baseLetter));
+						break;
+					}
+				}
+			}
+		}
+		return m;
+	}
+	
+	
 	/**
 	 * Get the character code including any escaped diacritics that precede 
 	 * the letter and any unicode "combining characters" that follow it.
@@ -254,7 +360,7 @@ public class Charset {
 		Tuple3<List<String>, String, Integer> letterAndLength = readDiacriticsAndLetterAt(s, 0);
 		int length = letterAndLength._3;
 		if (s.length() != length) throw new RuntimeException("Could not escape ["+s+"] because it contains more than one character ("+StringHelper.toUnicode(s)+")");
-		return makeTuple2(letterAndLength._1, letterAndLength._2);
+		return Tuple2(letterAndLength._1, letterAndLength._2);
 	}
 
 	/**
@@ -275,7 +381,7 @@ public class Charset {
 		Tuple3<List<String>, String, Integer> result = readDiacriticsAndLetterAt(line, offset);
 		String c = StringHelper.join(result._1) + result._2;
 		int length = result._3;
-		return makeTuple2(c, length);
+		return Tuple2(c, length);
 	}
 	
 	/**
@@ -299,7 +405,7 @@ public class Charset {
 		if (offset >= lineLen) throw new RuntimeException("offset must be less than the line length");
 		
 		if (lineLen - offset >= 2 && line.substring(offset, offset + 2).equals("\\\\"))
-			return makeTuple3(new ArrayList<String>(), "\\\\", 2); // "\\" is its own character (for "\"), not an escaped diacritic
+			return Tuple3((List<String>)new ArrayList<String>(), "\\\\", 2); // "\\" is its own character (for "\"), not an escaped diacritic
 		
 		List<String> diacritics = new ArrayList<String>();
 
@@ -330,7 +436,7 @@ public class Charset {
 
 		String deprecomposedChar = Charset.PRECOMPOSED_TO_ESCAPED_MAP.get(letter);
 		if (deprecomposedChar == null) {
-			return makeTuple3(diacritics, letter, i - offset);
+			return Tuple3(diacritics, letter, i - offset);
 		}
 		else {
 			int dcLen = deprecomposedChar.length();
@@ -342,10 +448,33 @@ public class Charset {
 				j += 2; // accept the 2-character escape sequence
 			}
 			String letterOnly = deprecomposedChar.substring(j, j + 1);
-			return makeTuple3(diacritics, letterOnly, i - offset);
+			return Tuple3(diacritics, letterOnly, i - offset);
 		}
 	}
 
+	/**
+	 * Convert a string into a sequence of diacritic-escaped characters.
+	 * 
+	 * @see edu.berkeley.cs.nlp.ocular.data.textreader.textreader.Charset.escapeChar
+	 * 
+	 * @param line	A line of text possibly containing characters with diacritics
+	 * composed, precomposed, or escaped.
+	 * @return	A fully-escaped character string, with all diacritics (combining
+	 * and precomposed) converted to their equivalent escape sequences.
+	 */
+	public static List<String> readCharacters(String line) {
+		List<String> escapedChars = new ArrayList<String>();
+		int i = 0;
+		while (i < line.length()) {
+			Tuple2<String, Integer> escapedCharAndLength = Charset.readCharAt(line, i);
+			String c = escapedCharAndLength._1;
+			int length = escapedCharAndLength._2;
+			escapedChars.add(c);
+			i += length; // advance to the next character
+		}
+		return escapedChars;
+	}
+	
 	/**
 	 * Convert diacritic escape sequences on a character into unicode precomposed and combining characters
 	 */
@@ -372,6 +501,30 @@ public class Charset {
 			b.append(escapeToCombining(diacritics.get(i)));
 		}
 		
+		return b.toString();
+	}
+
+	/**
+	 * Convert diacritic escape sequences on a character into unicode precomposed and combining characters
+	 */
+	public static String unescapeCharPrecomposedOnly(String c) {
+		if (c.length() == 1) return c; // no escapes
+		if (c.equals("\\\\")) return c;
+		
+		Tuple2<List<String>,String> escapedDiacriticsAndLetter = escapeCharSeparateDiacritics(c); // use escapes only (and make sure it's a valid character)
+		List<String> diacritics = escapedDiacriticsAndLetter._1;
+		String baseLetter = escapedDiacriticsAndLetter._2;
+		
+		StringBuilder b = new StringBuilder(join(take(diacritics, diacritics.size()-1)));
+		
+		// Attempt to make a precomposed letter, falling back to composed otherwise
+		String lastDiacritic = last(diacritics);
+		String precomposed = ESCAPED_TO_PRECOMPOSED_MAP.get(lastDiacritic + baseLetter); // last escape + letter
+		if (precomposed != null)
+			b.append(precomposed);
+		else 
+			b.append(lastDiacritic).append(baseLetter);
+
 		return b.toString();
 	}
 

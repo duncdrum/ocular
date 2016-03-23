@@ -267,15 +267,14 @@ public class CharacterTemplate implements Serializable {
 		clearWidthCounts();
 	}
 	
-	public void incrementCounts(float count, PixelType[][] observations, int startCol, int endCol, int exposure, int offset) {
-		int width = endCol - startCol;
+	public void incrementCounts(float count, PixelType[][] observations, int startCol, int width, int exposure, int offset) {
 		for (int i=0; i<width; ++i) {
 			incrementEmissionCounts(exposure, offset, width, i, count, observations[startCol+i]);
 		}
 		incrementWidthCounts(width, count);
 	}
 	
-	public void updateParameters(int iter) {
+	public void updateParameters() {
 		updateWidthParameters(LEARN_WIDTH_MIN_VAR, LEARN_WIDTH_STD_THRESH);
 		updateEmissionParameters(MSTEP_LBFGS_TOL, MSTEP_LBFGS_ITERS);
 	}

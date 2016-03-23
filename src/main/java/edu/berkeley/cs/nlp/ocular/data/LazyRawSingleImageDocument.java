@@ -3,13 +3,14 @@ package edu.berkeley.cs.nlp.ocular.data;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
+import edu.berkeley.cs.nlp.ocular.util.FileUtil;
 import fileio.f;
 
 /**
  * A document that reads a file only as it is needed (and then stores
  * the contents in memory for later use).
  * 
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class LazyRawSingleImageDocument extends LazyRawImageDocument {
 	private final File file;

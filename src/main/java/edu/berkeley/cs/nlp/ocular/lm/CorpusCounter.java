@@ -8,12 +8,15 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import edu.berkeley.cs.nlp.ocular.data.FileUtil;
 import edu.berkeley.cs.nlp.ocular.data.textreader.TextReader;
+import edu.berkeley.cs.nlp.ocular.util.CollectionHelper;
+import edu.berkeley.cs.nlp.ocular.util.FileUtil;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
@@ -34,6 +37,7 @@ public class CorpusCounter {
                                                40 * MILLION, 60 * MILLION, 80 * MILLION };
 
   private final Set<Integer> activeCharacters;
+  private final Map<Integer,Integer> unigramCounts;
   
 	public CorpusCounter(int maxNgramOrder) {
     this.counts = new CountDbBig[maxNgramOrder];
@@ -54,6 +58,7 @@ public class CorpusCounter {
     this.tokenCount = 0;
     
     this.activeCharacters = new TreeSet<Integer>();
+    this.unigramCounts = new HashMap<Integer,Integer>();
   }
 
   public CountDbBig[] getCounts() {
@@ -73,7 +78,7 @@ public class CorpusCounter {
 
   public void count(String fileName, int maxNumLines, Indexer<String> charIndexer, TextReader textReader) {
     try {
-    	BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(fileName), "UTF-8"));
+      BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(fileName), "UTF-8"));
       int lineNumber = 0;
       while (in.ready()) {
         if (lineNumber >= maxNumLines) {
@@ -123,9 +128,6 @@ public class CorpusCounter {
    * @param lineIdx
    */
   public void countLine(int[] line, int lineIdx) {
-//    if (lineIdx % 100000 == 0) {
-//      printStats(lineIdx);
-//    }
     // Put in two start of sentence tokens
     int[] ngramArr = new int[maxNgramOrder];
     Arrays.fill(ngramArr, -1);
@@ -139,7 +141,9 @@ public class CorpusCounter {
       if (line[charIdx] != -1) {
         incrementCounts(ngramArr, maxNgramOrder - (firstMinusOneLookingBack(ngramArr) + 1));
         
-        this.activeCharacters.add(line[charIdx]);
+        int c = line[charIdx];
+        this.activeCharacters.add(c);
+        this.unigramCounts.put(c, CollectionHelper.getOrElse(this.unigramCounts, c, 0) + 1);
       }
       tokenCount++;
       for (int i = 0; i < counts.length; i++) {
@@ -202,6 +206,10 @@ public class CorpusCounter {
   
   public Set<Integer> getActiveCharacters() {
 		return activeCharacters;
-	}
+  }
+  
+  public Map<Integer,Integer> getUnigramCounts() {
+		return unigramCounts;
+  }
 
 }

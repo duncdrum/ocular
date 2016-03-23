@@ -1,7 +1,7 @@
 package edu.berkeley.cs.nlp.ocular.data.textreader;
 
 import static edu.berkeley.cs.nlp.ocular.data.textreader.Charset.*;
-import static edu.berkeley.cs.nlp.ocular.util.Tuple2.makeTuple2;
+import static edu.berkeley.cs.nlp.ocular.util.Tuple2.Tuple2;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 
@@ -12,7 +12,7 @@ import org.junit.Test;
 import edu.berkeley.cs.nlp.ocular.util.Tuple2;
 
 /**
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class CharsetTests {
 
@@ -40,6 +40,21 @@ public class CharsetTests {
 		//assertEquals("ı", unescapeChar("\\ii"));
 		
 		assertEquals("\\\\", unescapeChar("\\\\"));
+	}
+
+	@Test
+	public void test_unescapeCharPrecomposedOnly() {
+		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + "ñ", unescapeCharPrecomposedOnly("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING));
+		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + "ñ", unescapeCharPrecomposedOnly("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
+		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + TILDE_ESCAPE + "q", unescapeCharPrecomposedOnly("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
+
+		assertEquals("ñ", unescapeCharPrecomposedOnly("ñ"));
+		assertEquals("ñ", unescapeCharPrecomposedOnly("\\~n"));
+		assertEquals("\\~q", unescapeCharPrecomposedOnly("q" + TILDE_COMBINING));
+		assertEquals("\\~q", unescapeCharPrecomposedOnly("\\~q"));
+		//assertEquals("ı", unescapeCharPrecomposedOnly("\\ii"));
+		
+		assertEquals("\\\\", unescapeCharPrecomposedOnly("\\\\"));
 	}
 
 	@Test
@@ -111,7 +126,7 @@ public class CharsetTests {
 	@Test
 	public void test_readCharAt() {
 		//String s1 = "ing th\\~q || | follies of thõsè, who éither ``sæek'' out th\\\"os\\`e wæys \"and\" means, which either are sq̃uccess lessons";
-		assertEquals(makeTuple2("\\\\", 2), readCharAt("this\\\\that", 4));
+		assertEquals(Tuple2("\\\\", 2), readCharAt("this\\\\that", 4));
 	}
 
 }

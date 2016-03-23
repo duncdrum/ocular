@@ -6,7 +6,7 @@ name := "ocular"
 
 organization := "edu.berkeley.cs.nlp"
 
-version := "0.2-SNAPSHOT"
+version := "0.3-SNAPSHOT"
 
 scalaVersion := "2.11.7"
 

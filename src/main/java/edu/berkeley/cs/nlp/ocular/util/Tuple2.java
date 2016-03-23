@@ -5,7 +5,7 @@ import java.util.Comparator;
 
 /**
  * @author Dan Klein
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class Tuple2<A1, A2> implements Serializable {
 	static final long serialVersionUID = 52;
@@ -46,7 +46,7 @@ public class Tuple2<A1, A2> implements Serializable {
 		this._2 = _2;
 	}
 
-	public static <A1, A2> Tuple2<A1, A2> makeTuple2(A1 _1, A2 _2) {
+	public static <A1, A2> Tuple2<A1, A2> Tuple2(A1 _1, A2 _2) {
 		return new Tuple2<A1, A2>(_1, _2);
 	}
 

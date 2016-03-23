@@ -1,24 +1,19 @@
 package edu.berkeley.cs.nlp.ocular.lm;
 
 import java.io.Serializable;
-import java.util.Set;
 
-import edu.berkeley.cs.nlp.ocular.lm.LanguageModel;
-import edu.berkeley.cs.nlp.ocular.lm.SingleLanguageModel;
+import indexer.Indexer;
 
 /**
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public interface CodeSwitchLanguageModel extends LanguageModel, Serializable {
 
-	public Set<String> languages();
-
-	public SingleLanguageModel get(String language);
-
-	public Double languagePrior(String language);
-
-	public Double languageTransitionPrior(String fromLanguage, String destinationLanguage);
+	public Indexer<String> getLanguageIndexer();
 	
+	public SingleLanguageModel get(int language);
+	public double languagePrior(int language);
+	public double languageTransitionProb(int fromLanguage, int destinationLanguage);
 	public double getProbKeepSameLanguage();
-	
+
 }

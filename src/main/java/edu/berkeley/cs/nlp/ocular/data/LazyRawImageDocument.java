@@ -1,5 +1,7 @@
 package edu.berkeley.cs.nlp.ocular.data;
 
+import static edu.berkeley.cs.nlp.ocular.data.textreader.Charset.SPACE;
+
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
@@ -13,8 +15,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import edu.berkeley.cs.nlp.ocular.data.textreader.BasicTextReader;
-import edu.berkeley.cs.nlp.ocular.data.textreader.TextReader;
+import edu.berkeley.cs.nlp.ocular.data.textreader.Charset;
 import edu.berkeley.cs.nlp.ocular.image.ImageUtils;
 import edu.berkeley.cs.nlp.ocular.image.ImageUtils.PixelType;
 import edu.berkeley.cs.nlp.ocular.image.Visualizer;
@@ -22,15 +23,17 @@ import edu.berkeley.cs.nlp.ocular.preprocessing.Binarizer;
 import edu.berkeley.cs.nlp.ocular.preprocessing.Cropper;
 import edu.berkeley.cs.nlp.ocular.preprocessing.LineExtractor;
 import edu.berkeley.cs.nlp.ocular.preprocessing.Straightener;
+import edu.berkeley.cs.nlp.ocular.util.FileUtil;
+import static edu.berkeley.cs.nlp.ocular.util.CollectionHelper.last;
 import fileio.f;
 
 /**
  * A document that reads a file only as it is needed (and then stores
  * the contents in memory for later use).
  * 
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
-public abstract class LazyRawImageDocument implements ImageLoader.Document {
+public abstract class LazyRawImageDocument implements Document {
 	private final String inputPath;
 	private final int lineHeight;
 	private final double binarizeThreshold;
@@ -40,9 +43,12 @@ public abstract class LazyRawImageDocument implements ImageLoader.Document {
 
 	private String extractedLinesPath = null;
 
-	private String[][] text = null;
-
-	private TextReader textReader = new BasicTextReader();
+	private String[][] diplomaticTextLines = null;
+	private boolean diplomaticTextLinesLoaded = false;
+	private String[][] normalizedTextLines = null;
+	private boolean normalizedTextLinesLoaded = false;
+	private List<String> normalizedText = null;
+	private boolean normalizedTextLoaded = false;
 
 	public LazyRawImageDocument(String inputPath, int lineHeight, double binarizeThreshold, boolean crop, String extractedLinesPath) {
 		this.inputPath = inputPath;
@@ -98,7 +104,7 @@ public abstract class LazyRawImageDocument implements ImageLoader.Document {
 		observations = new PixelType[lineImageFiles.length][][];
 		for (int i = 0; i < lineImageFiles.length; ++i) {
 			Matcher m = pattern.matcher(lineImageFiles[i].getName());
-			if (m.find() && Integer.valueOf(m.group(1)) != i) throw new RuntimeException("Trying to load lines from "+leLineDir()+" but the file for line "+i+" is missing (first file seems to be "+Integer.valueOf(m.group(1))+").");
+			if (m.find() && Integer.valueOf(m.group(1)) != i) throw new RuntimeException("Trying to load lines from "+leLineDir()+" but the file for line "+i+" is missing (found "+m.group(1)+" instead).");
 			String lineImageFile = fullLeLinePath(i);
 			System.out.println("    Loading pre-extracted line from " + lineImageFile);
 			try {
@@ -141,34 +147,75 @@ public abstract class LazyRawImageDocument implements ImageLoader.Document {
 		return f.exists();
 	}
 	
-	public String[][] loadLineText() {
-		if (text == null) {
-			File textFile = new File(baseName().replaceAll("\\.[^.]*$", "") + ".txt");
-			if (textFile.exists()) {
-				System.out.println("Evaluation text found at " + textFile);
-				List<List<String>> textList = new ArrayList<List<String>>();
-				try {
-					BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(textFile), "UTF-8"));
-					while (in.ready()) {
-						textList.add(textReader.readCharacters(in.readLine()));
-					}
-					in.close();
+	private String[][] loadTextFile(File textFile, String name) {
+		if (textFile.exists()) {
+			System.out.println("Evaluation "+name+" text found at " + textFile);
+			List<List<String>> textList = new ArrayList<List<String>>();
+			try {
+				BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(textFile), "UTF-8"));
+				while (in.ready()) {
+					textList.add(Charset.readCharacters(in.readLine()));
 				}
-				catch (IOException e) {
-					throw new RuntimeException(e);
-				}
-
-				text = new String[textList.size()][];
-				for (int i = 0; i < text.length; ++i) {
-					List<String> line = textList.get(i);
-					text[i] = line.toArray(new String[line.size()]);
-				}
+				in.close();
 			}
-			else {
-				System.out.println("No evaluation text found at " + textFile + "  (This is only a problem if you were trying to provide a gold transcription to check accuracy.)");
+			catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+
+			String[][] textLines = new String[textList.size()][];
+			for (int i = 0; i < textLines.length; ++i) {
+				List<String> line = textList.get(i);
+				textLines[i] = line.toArray(new String[line.size()]);
+			}
+			return textLines;
+		}
+		else {
+			System.out.println("No evaluation "+name+" text found at " + textFile + "  (This is only a problem if you were trying to provide a gold "+name+" transcription to check accuracy.)");
+			return null;
+		}
+	}
+	
+	public String[][] loadDiplomaticTextLines() {
+		if (!diplomaticTextLinesLoaded) {
+			diplomaticTextLines = loadTextFile(new File(baseName().replaceAll("\\.[^.]*$", "") + ".txt"), "diplomatic");
+		}
+		diplomaticTextLinesLoaded = true;
+		return diplomaticTextLines;
+	}
+
+	public String[][] loadNormalizedTextLines() {
+		if (!normalizedTextLinesLoaded) {
+			normalizedTextLines = loadTextFile(new File(baseName().replaceAll("\\.[^.]*$", "") + "_normalized.txt"), "normalized");
+		}
+		normalizedTextLinesLoaded = true;
+		return normalizedTextLines;
+	}
+
+	public List<String> loadNormalizedText() {
+		if (!normalizedTextLoaded) {
+			String[][] normalizedTextLines = loadNormalizedTextLines();
+			if (normalizedTextLines != null) {
+				normalizedText = new ArrayList<String>();
+				for (String[] lineChars : loadNormalizedTextLines()) {
+					for (String c : lineChars) {
+						if (SPACE.equals(c) && (normalizedText.isEmpty() || SPACE.equals(last(normalizedText)))) {
+							// do nothing -- collapse spaces
+						}
+						else {
+							normalizedText.add(c);
+						}
+					}
+					if (!normalizedText.isEmpty() && !SPACE.equals(last(normalizedText))) {
+						normalizedText.add(SPACE);
+					}
+				}
+				if (SPACE.equals(last(normalizedText))) {
+					normalizedText.remove(normalizedText.size()-1);
+				}
 			}
 		}
-		return text;
+		normalizedTextLoaded = true;
+		return normalizedText;
 	}
 
 	private String multilineExtractionImagePath() { return fullLePreExt() + "." + ext(); }

@@ -1,7 +1,7 @@
 package edu.berkeley.cs.nlp.ocular.main;
 
 import static edu.berkeley.cs.nlp.ocular.data.textreader.Charset.HYPHEN;
-import indexer.Indexer;
+import static edu.berkeley.cs.nlp.ocular.util.Tuple2.Tuple2;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -9,33 +9,34 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import threading.BetterThreader;
-import edu.berkeley.cs.nlp.ocular.data.ImageLoader;
-import edu.berkeley.cs.nlp.ocular.data.ImageLoader.Document;
+import edu.berkeley.cs.nlp.ocular.data.Document;
 import edu.berkeley.cs.nlp.ocular.data.RawImageLoader;
 import edu.berkeley.cs.nlp.ocular.eval.Evaluator;
 import edu.berkeley.cs.nlp.ocular.eval.Evaluator.EvalSuffStats;
+import edu.berkeley.cs.nlp.ocular.font.Font;
 import edu.berkeley.cs.nlp.ocular.image.ImageUtils.PixelType;
 import edu.berkeley.cs.nlp.ocular.image.Visualizer;
 import edu.berkeley.cs.nlp.ocular.lm.NgramLanguageModel;
-import edu.berkeley.cs.nlp.ocular.model.BeamingSemiMarkovDP;
-import edu.berkeley.cs.nlp.ocular.model.CUDAInnerLoop;
-import edu.berkeley.cs.nlp.ocular.model.CachingEmissionModel;
-import edu.berkeley.cs.nlp.ocular.model.CachingEmissionModelExplicitOffset;
-import edu.berkeley.cs.nlp.ocular.model.CharacterNgramTransitionModel;
-import edu.berkeley.cs.nlp.ocular.model.CharacterNgramTransitionModelMarkovOffset;
 import edu.berkeley.cs.nlp.ocular.model.CharacterTemplate;
-import edu.berkeley.cs.nlp.ocular.model.DefaultInnerLoop;
-import edu.berkeley.cs.nlp.ocular.model.DenseBigramTransitionModel;
-import edu.berkeley.cs.nlp.ocular.model.EmissionCacheInnerLoop;
-import edu.berkeley.cs.nlp.ocular.model.EmissionModel;
-import edu.berkeley.cs.nlp.ocular.model.OpenCLInnerLoop;
-import edu.berkeley.cs.nlp.ocular.model.SparseTransitionModel;
-import edu.berkeley.cs.nlp.ocular.model.SparseTransitionModel.TransitionState;
+import edu.berkeley.cs.nlp.ocular.model.em.BeamingSemiMarkovDP;
+import edu.berkeley.cs.nlp.ocular.model.em.CUDAInnerLoop;
+import edu.berkeley.cs.nlp.ocular.model.em.DefaultInnerLoop;
+import edu.berkeley.cs.nlp.ocular.model.em.DenseBigramTransitionModel;
+import edu.berkeley.cs.nlp.ocular.model.em.EmissionCacheInnerLoop;
+import edu.berkeley.cs.nlp.ocular.model.em.OpenCLInnerLoop;
+import edu.berkeley.cs.nlp.ocular.model.emission.CachingEmissionModel;
+import edu.berkeley.cs.nlp.ocular.model.emission.CachingEmissionModelExplicitOffset;
+import edu.berkeley.cs.nlp.ocular.model.emission.EmissionModel;
+import edu.berkeley.cs.nlp.ocular.model.transition.CharacterNgramTransitionModel;
+import edu.berkeley.cs.nlp.ocular.model.transition.CharacterNgramTransitionModelMarkovOffset;
+import edu.berkeley.cs.nlp.ocular.model.transition.SparseTransitionModel;
+import edu.berkeley.cs.nlp.ocular.model.transition.SparseTransitionModel.TransitionState;
 import edu.berkeley.cs.nlp.ocular.util.Tuple2;
 import fig.Option;
 import fig.OptionsParser;
 import fileio.f;
+import indexer.Indexer;
+import threading.BetterThreader;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
@@ -83,7 +84,7 @@ public class Main implements Runnable {
 	@Option(gloss = "Number of threads to use for LFBGS during m-step.")
 	public static int numMstepThreads = 8;
 
-	@Option(gloss = "Number of threads to use during emission cache compuation. (Only has affect when emissionEngine is set to DEFAULT.)")
+	@Option(gloss = "Number of threads to use during emission cache computation. (Only has affect when emissionEngine is set to DEFAULT.)")
 	public static int numEmissionCacheThreads = 8;
 
 	@Option(gloss = "Number of threads to use for decoding. (Should be no smaller than decodeBatchSize.)")
@@ -128,8 +129,8 @@ public class Main implements Runnable {
 		
 		List<Tuple2<String,Map<String,EvalSuffStats>>> allEvals = new ArrayList<Tuple2<String,Map<String,EvalSuffStats>>>();
 
-		ImageLoader loader =  new RawImageLoader(inputPath, CharacterTemplate.LINE_HEIGHT, binarizeThreshold, numMstepThreads);
-		List<Document> documents = loader.readDataset();
+		List<Document> documents = RawImageLoader.loadDocuments(inputPath, CharacterTemplate.LINE_HEIGHT, binarizeThreshold, numMstepThreads);
+		if (documents.isEmpty()) throw new NoDocumentsFoundException();
 		for (Document doc : documents) {
 			final PixelType[][][] pixels = doc.loadLineImages();
 			System.out.println("Printing line extraction for document: "+doc.baseName());
@@ -150,7 +151,7 @@ public class Main implements Runnable {
 		System.out.println("Num characters: " + charIndexer.size());
 
 		System.out.println("Loading font initializer..");
-		Map<String,CharacterTemplate> font = InitializeFont.readFont(initFontPath);
+		Font font = InitializeFont.readFont(initFontPath);
 		final CharacterTemplate[] templates = new CharacterTemplate[charIndexer.size()];
 		for (int c=0; c<templates.length; ++c) {
 			templates[c] = font.get(charIndexer.getObject(c));
@@ -178,7 +179,7 @@ public class Main implements Runnable {
 				System.out.println("Document: "+doc.baseName());
 
 				final PixelType[][][] pixels = doc.loadLineImages();
-				final String[][] text = doc.loadLineText();
+				final String[][] text = doc.loadDiplomaticTextLines();
 
 				// e-step
 
@@ -240,9 +241,8 @@ public class Main implements Runnable {
 			if (iter <= numEMIters) {
 				long nanoTime = System.nanoTime();
 				{
-					final int iterFinal = iter;
 					BetterThreader.Function<Integer,Object> func = new BetterThreader.Function<Integer,Object>(){public void call(Integer c, Object ignore){
-						if (templates[c] != null) templates[c].updateParameters(iterFinal);
+						if (templates[c] != null) templates[c].updateParameters();
 					}};
 					BetterThreader<Integer,Object> threader = new BetterThreader<Integer,Object>(func, numMstepThreads);
 					for (int c=0; c<templates.length; ++c) threader.addFunctionArgument(c);
@@ -300,7 +300,7 @@ public class Main implements Runnable {
 			viterbiChars[line] = new ArrayList<String>();
 
 			for (int i=0; i<decodeStates[line].length; ++i) {
-				int c = decodeStates[line][i].getCharIndex();
+				int c = decodeStates[line][i].getGlyphChar().templateCharIndex;
 				if (viterbiChars[line].isEmpty() || !(HYPHEN.equals(viterbiChars[line].get(viterbiChars[line].size()-1)) && HYPHEN.equals(charIndexer.getObject(c)))) {
 					viterbiChars[line].add(charIndexer.getObject(c));
 				}
@@ -329,9 +329,9 @@ public class Main implements Runnable {
 				guessAndGoldOut.append("\n");
 			}
 
-			Map<String,EvalSuffStats> evals = Evaluator.getUnsegmentedEval(viterbiChars, goldCharSequences);
+			Map<String,EvalSuffStats> evals = Evaluator.getUnsegmentedEval(viterbiChars, goldCharSequences, true);
 			if (iter > numEMIters) {
-				allEvals.add(Tuple2.makeTuple2(doc.baseName(), evals));
+				allEvals.add(Tuple2(doc.baseName(), evals));
 			}
 			System.out.println(guessAndGoldOut.toString()+Evaluator.renderEval(evals));
 

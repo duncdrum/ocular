@@ -3,9 +3,65 @@ package edu.berkeley.cs.nlp.ocular.util;
 import java.util.Arrays;
 
 /**
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class ArrayHelper {
+
+	public static int sum(int[] xs) {
+		int result = 0;
+		for (int x : xs) result += x;
+		return result;
+	}
+
+	public static double sum(double[] xs) {
+		double result = 0.0;
+		for (double x : xs) result += x;
+		return result;
+	}
+
+	public static double avg(int[] xs) {
+		if (xs.length == 0) return 0.0;
+		else return ((double)sum(xs)) / xs.length;
+	}
+
+	public static double avg(double[] xs) {
+		if (xs.length == 0) return 0.0;
+		else return sum(xs) / xs.length;
+	}
+
+	public static int max(int... xs) {
+		if (xs.length == 0) throw new RuntimeException("ArrayHelper.max cannot be used on an empty array.");
+		int v = Integer.MIN_VALUE;
+		for (int x : xs) {
+			if (x > v) v = x;
+		}
+		return v;
+	}
+	
+	public static double max(double... xs) {
+		if (xs.length == 0) throw new RuntimeException("ArrayHelper.max cannot be used on an empty array.");
+		double v = Double.MIN_VALUE;
+		for (double x : xs) {
+			if (x > v) v = x;
+		}
+		return v;
+	}
+	
+	public static int min(int... xs) {
+		if (xs.length == 0) throw new RuntimeException("ArrayHelper.min cannot be used on an empty array.");
+		int v = Integer.MAX_VALUE;
+		for (int x : xs)
+			if (x < v) v = x;
+		return v;
+	}
+
+	public static double min(double... xs) {
+		if (xs.length == 0) throw new RuntimeException("ArrayHelper.min cannot be used on an empty array.");
+		double v = Double.MAX_VALUE;
+		for (double x : xs)
+			if (x < v) v = x;
+		return v;
+	}
 
 	public static int[] prepend(int c, int[] vec1) {
 		int[] result = new int[vec1.length + 1];

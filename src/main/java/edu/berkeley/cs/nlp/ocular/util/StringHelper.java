@@ -3,7 +3,7 @@ package edu.berkeley.cs.nlp.ocular.util;
 import java.util.List;
 
 /**
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class StringHelper {
 
@@ -26,6 +26,15 @@ public class StringHelper {
 			return s.substring(0, n);
 		else
 			return s;
+	}
+
+	public static String drop(String s, int n) {
+		if (n <= 0)
+			return s;
+		else if (n < s.length())
+			return s.substring(n);
+		else
+			return "";
 	}
 
 	public static String last(String s) {

@@ -1,15 +1,26 @@
 package edu.berkeley.cs.nlp.ocular.data.textreader;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-
-import edu.berkeley.cs.nlp.ocular.util.Tuple2;
+import java.util.Set;
 
 /**
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class BasicTextReader implements TextReader {
 
+	private Set<String> bannedChars;
+	
+	@SuppressWarnings("unchecked")
+	public BasicTextReader() {
+		this.bannedChars = Collections.EMPTY_SET;
+	}
+	
+	public BasicTextReader(Set<String> bannedChars) {
+		this.bannedChars = bannedChars;
+	}
+	
 	public List<List<String>> readCharacters(List<String> lines) {
 		List<List<String>> characterLines = new ArrayList<List<String>>();
 		for (String l : lines)
@@ -27,13 +38,10 @@ public class BasicTextReader implements TextReader {
 		 * diacritic-less letters.
 		 */
 		List<String> escapedChars = new ArrayList<String>();
-		int i = 0;
-		while (i < line.length()) {
-			Tuple2<String, Integer> escapedCharAndLength = Charset.readCharAt(line, i);
-			String c = escapedCharAndLength._1;
-			int length = escapedCharAndLength._2;
-			escapedChars.add(c);
-			i += length; // advance to the next character
+		for (String c : Charset.readCharacters(line)) {
+			if (!bannedChars.contains(c)) {
+				escapedChars.add(c);
+			}
 		}
 		return escapedChars;
 	}

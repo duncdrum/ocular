@@ -7,11 +7,11 @@ import java.util.List;
 
 import edu.berkeley.cs.nlp.ocular.util.CollectionHelper;
 import edu.berkeley.cs.nlp.ocular.util.Tuple2;
-import static edu.berkeley.cs.nlp.ocular.util.Tuple2.makeTuple2;
+import static edu.berkeley.cs.nlp.ocular.util.Tuple2.Tuple2;
 import fileio.f;
 
 /**
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class ReplaceSomeTextReader implements TextReader {
 
@@ -67,13 +67,12 @@ public class ReplaceSomeTextReader implements TextReader {
 	}
 
 	public static List<Tuple2<Tuple2<List<String>, List<String>>, Integer>> loadRulesFromFile(String path) {
-		TextReader tr = new BasicTextReader();
 		List<Tuple2<Tuple2<List<String>, List<String>>, Integer>> result = new ArrayList<Tuple2<Tuple2<List<String>, List<String>>, Integer>>();
 		for (String line : f.readLines(path)) {
 			if (!line.trim().isEmpty()) {
 				String[] parts = line.split("\t");
 				if (parts.length != 3) throw new RuntimeException("line does not contain 3 parts.  found: " + Arrays.asList(parts));
-				result.add(makeTuple2(makeTuple2(tr.readCharacters(parts[0]), tr.readCharacters(parts[1])), Integer.valueOf(parts[2])));
+				result.add(Tuple2(Tuple2(Charset.readCharacters(parts[0]), Charset.readCharacters(parts[1])), Integer.valueOf(parts[2])));
 			}
 		}
 		return result;

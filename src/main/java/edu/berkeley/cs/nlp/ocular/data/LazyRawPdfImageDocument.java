@@ -3,11 +3,13 @@ package edu.berkeley.cs.nlp.ocular.data;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
+import edu.berkeley.cs.nlp.ocular.util.FileUtil;
+
 /**
  * A document that reads a page from a pdf file only as it is needed
  * (and then stores the contents in memory for later use).
  * 
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class LazyRawPdfImageDocument extends LazyRawImageDocument {
 	private final File pdfFile;
@@ -20,7 +22,7 @@ public class LazyRawPdfImageDocument extends LazyRawImageDocument {
 	}
 
 	protected BufferedImage doLoadBufferedImage() {
-	  System.out.println("Extracting text line images from " + pdfFile + ", page " + pageNumber);
+		System.out.println("Extracting text line images from " + pdfFile + ", page " + pageNumber);
 		return PdfImageReader.readPdfPageAsImage(pdfFile, pageNumber);
 	}
 	

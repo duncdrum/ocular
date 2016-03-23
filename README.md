@@ -10,6 +10,14 @@
 
 Ocular is a state-of-the-art historical OCR system.
 
+Its primary features are:
+
+* Unsupervised learning of unknown fonts: requires only document images and a corpus of text.
+* Ability to handle noisy documents: inconsistent inking, spacing, vertical alignment, etc.
+* Support for multilingual documents, including those that have considerable word-level code-switching.
+* Unsupervised learning of orthographic variation patterns including archaic spellings and printer shorthand.
+* Simultaneous, joint transcription into both diplomatic (literal) and normalized forms, the first OCR system of its kind.
+
 It is described in the following publications:
 
 > **Unsupervised Transcription of Historical Documents**
@@ -23,24 +31,46 @@ It is described in the following publications:
 > ACL 2014
 
 > **Unsupervised Code-Switching for Multilingual Historical Document Transcription**
-> [[pdf]](http://www.aclweb.org/anthology/N15-1109)    
+> [[pdf]](http://www.aclweb.org/anthology/N15-1109)
+> [[data]](https://github.com/dhgarrette/ocr-evaluation-data)  
 > [Dan Garrette], [Hannah Alpert-Abrams], [Taylor Berg-Kirkpatrick], and [Dan Klein]  
 > NAACL 2015
+
+> **An Unsupervised Model of Orthographic Variation for Historical Document Transcription**
+> [[pdf]](http://www.dhgarrette.com/papers/garrette_ocr_naacl2016.pdf)
+> [[data]](https://github.com/dhgarrette/ocr-evaluation-data)  
+> [Dan Garrette] and [Hannah Alpert-Abrams]  
+> NAACL 2016
 
 
 Continued development of Ocular is supported in part by a [Digital Humanities Implementation Grant](http://www.neh.gov/divisions/odh/grant-news/announcing-6-digital-humanities-implementation-grants-awards-july-2015) from the [National Endowment for the Humanities](http://www.neh.gov) for the project [Reading the First Books: Multilingual, Early-Modern OCR for Primeros Libros](https://sites.utexas.edu/firstbooks/).
 
 
 
-## Quick-Start Guide
+
+## Contents of this README
+
+1. [Quick-Start Guide](#1-quick-start-guide)
+  * [Obtaining Ocular](#obtaining-ocular)
+  * [Using Ocular](#using-ocular)
+2. [Listing of Command-Line Options](#2-all-command-line-options)
+  * [Language Model Initialization](#initializelanguagemodel)
+  * [Font Initialization](#initializefont)
+  * [Font Training](#trainfont)
+  * [Transcription](#transcribe)
+
+
+## 1. Quick-Start Guide
 
 ### Obtaining Ocular
 
-The easiest way to get the Ocular software is to download the self-contained jar from http://www.cs.utexas.edu/~dhg/maven-repository/snapshots/edu/berkeley/cs/nlp/ocular/0.2-SNAPSHOT/ocular-0.2-SNAPSHOT-with_dependencies.jar
+The easiest way to get the Ocular software is to download the self-contained jar from http://www.cs.utexas.edu/~dhg/maven-repository/snapshots/edu/berkeley/cs/nlp/ocular/0.3-SNAPSHOT/ocular-0.3-SNAPSHOT-with_dependencies.jar
 
-This jar is executable and can be run like (see detailed instructions below):
+Once you have this jar, you will be able to run Ocular according to the instructions below in the [Using Ocular](https://github.com/tberg12/ocular#using-ocular) section; the code in this repository is not a requirement if all you'd like to do is run the software.
 
-    java -Done-jar.main.class=[MAIN-CLASS] -mx7g -jar ocular-0.2-SNAPSHOT-with_dependencies.jar [options...]
+The jar is executable, so when you use go to use Ocular, you will run it following this template (where [MAIN-CLASS] will specify which program to run, as detailed in the [Using Ocular](https://github.com/tberg12/ocular#using-ocular) section below):
+
+    java -Done-jar.main.class=[MAIN-CLASS] -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar [options...]
 
 This jar includes all the necessary dependencies, so you should be able to move it to, and run it from, wherever you like.
 
@@ -51,13 +81,15 @@ Clone this repository, and compile the project into a jar:
 
     git clone https://github.com/tberg12/ocular.git
     cd ocular
-    ./compile.sh
+    ./make_jar.sh
 
-  This creates the jar file `ocular-0.2-SNAPSHOT-with_dependencies.jar`  mentioned above.
+This creates precisely the same `ocular-0.3-SNAPSHOT-with_dependencies.jar` jar file discussed above.  Thus, this is sufficient to be able to run Ocular, as stated above, using the detailed instructions in the [Using Ocular](https://github.com/tberg12/ocular#using-ocular) section below.
 
-  Since this jar includes all the necessary dependencies, so you should be able to move it wherever you like, without the rest of the contents of this repository.
+Also like above, since this jar includes all the necessary dependencies, so you should be able to move it wherever you like, without the rest of the contents of this repository.
 
-  The `compile.sh` script also generates an executable script `target/start` that can be run like:
+**Compiling to an executable script instead of jar**
+
+Alternatively, if you do not wish to create the entire jar, you can run `make_run_script.sh`, which compiles the code and generates an executable script `target/start`.  This script can be used directly, in lieu of the jar file.  Thus to run Ocular, it is sufficient to run the `make_run_script.sh` script and then use the following template instead of the template given above:
   
     export JAVA_OPTS="-mx7g"     # Increase the available memory
     target/start [MAIN-CLASS] [options...]
@@ -69,246 +101,600 @@ Clone this repository, and compile the project into a jar:
     * Repository location: http://www.cs.utexas.edu/~dhg/maven-repository/snapshots
     * Group ID: edu.berkeley.cs.nlp
     * Artifact ID: ocular
-    * Version: 0.2-SNAPSHOT
+    * Version: 0.3-SNAPSHOT
     
 
 
 
 ### Using Ocular
 
-1. Train a language model:
+1. Initialize a language model:
 
-  Acquire some files with text written in the language(s) of your documents. For example, download a book in [English](http://www.gutenberg.org/cache/epub/2600/pg2600.txt). The path specified by `-textPath` should point to a text file or directory or directory hierarchy of text files; the path will be searched recursively for files.  Use `-lmPath` to specify where the trained LM should be written.
-    
-      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.TrainLanguageModel -mx7g -jar ocular-0.2-SNAPSHOT-with_dependencies.jar \
-        -lmPath lm/english.lmser \
-        -textPath texts/pg2600.txt
+  Acquire some files with text written in the language(s) of your documents. For example, download a book in [English](http://www.gutenberg.org/cache/epub/2600/pg2600.txt). The path specified by `-inputTextPath` should point to a text file or directory or directory hierarchy of text files; the path will be searched recursively for files.  Use `-lmPath` to specify where the trained LM should be written.
 
-  For a multilingual (code-switching) model, specify multiple `-textPath` entries composed of a language name and a path to files containing text in that language.  For example, a combined [Spanish](https://www.gutenberg.org/cache/epub/2000/pg2000.txt)/[Latin](https://www.gutenberg.org/cache/epub/23306/pg23306.txt)/[Nahuatl](https://www.gutenberg.org/cache/epub/12219/pg12219.txt) might be trained as follows:
+      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.InitializeLanguageModel -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar \
+        -inputTextPath texts/pg2600.txt \
+        -outputLmPath lm/english.lmser
 
-      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.TrainLanguageModel -mx7g -jar ocular-0.2-SNAPSHOT-with_dependencies.jar \
-        -lmPath lm/trilingual.lmser \
-        -textPath "spanish->texts/sp/,latin->texts/la/,nahuatl->texts/na/"
+  For a multilingual (code-switching) model, specify multiple `-inputTextPath` entries composed of a language name and a path to files containing text in that language.  For example, a combined [Spanish](https://www.gutenberg.org/cache/epub/2000/pg2000.txt)/[Latin](https://www.gutenberg.org/cache/epub/23306/pg23306.txt)/[Nahuatl](https://www.gutenberg.org/cache/epub/12219/pg12219.txt) might be trained as follows:
+
+      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.InitializeLanguageModel -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar \
+        -inputTextPath "spanish->texts/sp/,latin->texts/la/,nahuatl->texts/na/" \
+        -outputLmPath lm/trilingual.lmser
 
   This program will work with any languages, and any number of languages; simply add an entry for every relevant language.  The set of languages chosen should match the set of languages found in the documents that are to be transcribed.
-
-  For older texts (either monolingual or multilingual), it might also be useful to specify the optional parameters `alternateSpellingReplacementPaths` or `-insertLongS true`, as shown here:
-
-      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.TrainLanguageModel -mx7g -jar ocular-0.2-SNAPSHOT-with_dependencies.jar \
-        -lmPath lm/trilingual.lmser \
-        -textPath "spanish->texts/sp/,latin->texts/la/,nahuatl->texts/na/" \
-        -alternateSpellingReplacementPaths "spanish->replace/spanish.txt,latin->replace/latin.txt,nahuatl->replace/nahuatl.txt" \
-        -insertLongS true
 
   More details on the various command-line options can be found below.
 
 
 2. Initialize a font:
 
-  Before a font can be trained from texts, a font model consisting of a "guess" for each character must be initialized based on the fonts on your computer.  Use `-fontPath` to specify where the initialized font should be written.  Since different languages use different character sets, a language model must be given in order for the system to know what characters to initialize (`-lmPath`).
+  Before a font can be trained from texts, a font model consisting of a "guess" for each character must be initialized based on the fonts on your computer.  Use `-outputFontPath` to specify where the initialized font should be written.  Since different languages use different character sets, a language model must be given in order for the system to know what characters to initialize (`-lmPath`).
 
-      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.InitializeFont -mx7g -jar ocular-0.2-SNAPSHOT-with_dependencies.jar \
-        -lmPath lm/trilingual.lmser \
-        -fontPath font/advertencias/init.fontser
+      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.InitializeFont -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar \
+        -inputLmPath lm/trilingual.lmser \
+        -outputFontPath font/trilingual-init.fontser
 
 
 3. Train a font:
 
-  To train a font, a set of document pages must be given (`-inputPath`), along with the paths to the language model and initial font model.  Use `-outputFontPath` to specify where the trained font model should be written, and `-outputPath` to specify where transcriptions and evaluation metrics should be written.  The path specified by `-inputPath` should point to a pdf or image file or directory or directory hierarchy of such files.  The value given by `-inputPath` will be searched recursively for non-`.txt` files; the transcriptions written to the `-outputPath` will maintain the same directory hierarchy.
+  To train a font, a set of document pages must be given (`-inputDocPath`), along with the paths to the language model and initial font model.  Use `-outputFontPath` to specify where the trained font model should be written, and `-outputPath` to specify where transcriptions and (optional) evaluation metrics should be written.  The path specified by `-inputDocPath` should point to a pdf or image file or directory or directory hierarchy of such files.  The value given by `-inputDocPath` will be searched recursively for non-`.txt` files; the transcriptions written to the `-outputPath` will maintain the same directory hierarchy.
 
-      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.TranscribeOrTrainFont -mx7g -jar ocular-0.2-SNAPSHOT-with_dependencies.jar \
-        -learnFont true \
-        -initFontPath font/advertencias/init.fontser \
-        -lmPath lm/trilingual.lmser \
-        -inputPath sample_images/advertencias \
+      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.TrainFont -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar \
+        -inputFontPath font/trilingual-init.fontser \
+        -inputLmPath lm/trilingual.lmser \
+        -inputDocPath sample_images/advertencias \
         -numDocs 10 \
         -outputFontPath font/advertencias/trained.fontser \
         -outputPath train_output
+
+  Since the operation of the font trainer is to take in a font model (`-inputFontPath`) and output a new and improved font model (`-outputFontPath`), TrainFont can be run multiple times, passing the output back in as the input of the next round, to continue to making improvements.
     
   Many more command-line options, including several that affect speed and accuracy, can be found below.
+
+  **Optional: Glyph substitution modeling for variable orthography**
+  
+  Ocular has the optional ability to learn, unsupervised, a mapping from archaic orthography to the orthography reflected in the trained language model. We call this a "glyph substitution model" (GSM).  To train a GSM, add the `-allowGlyphSubstitution`, `-updateGsm` and `-outputGsmPath` options.  If no `-inputGsmPath` is given, a new GSM will be created and then trained along with the font.
+
+      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.TrainFont -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar \
+        -inputFontPath font/trilingual-init.fontser \
+        -inputLmPath lm/trilingual.lmser \
+        -inputDocPath sample_images/advertencias \
+        -numDocs 10 \
+        -outputFontPath font/advertencias/trained.fontser \
+        -outputPath train_output \
+        -allowGlyphSubstitution true \
+        -updateGsm true \
+        -outputGsmPath gsm/advertencias/trained.gsmser
+
+  If `-allowGlyphSubstitution` is set to true, Ocular will produce simultaneous dual transcriptions: one *diplomatic* (literal) and one normalized to match the LM training data's orthography.
 
 
 4. Transcribe some pages:
 
-  To transcribe pages, use the same instructions as above in #3 that were used to train a font, but leave `-learnFont` unspecified (or set it to `false`).  Additionally, `-initFontPath` should point to the newly-trained font model (instead of the "initial" font model used during font training).
+  To transcribe pages, `-inputFontPath` should point to the newly-trained font model (the `-outputFontPath` from the training step, instead of the "initial" font model used during font training).
 
-      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.TranscribeOrTrainFont -mx7g -jar ocular-0.2-SNAPSHOT-with_dependencies.jar \
-        -inputPath sample_images/advertencias \
-        -initFontPath font/advertencias/trained.fontser \
-        -lmPath lm/trilingual.lmser \
+      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.Transcribe -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar \
+        -inputDocPath sample_images/advertencias \
+        -inputLmPath lm/trilingual.lmser \
+        -inputFontPath font/advertencias/trained.fontser \
         -outputPath transcribe_output 
 
-  Many more command-line options, including several that affect speed and accuracy, can be found below.
+  As above, if `-allowGlyphSubstitution` is set to true and the `-inputGsmPath` is given, Ocular will produce simultaneous dual transcriptions: one *diplomatic* (literal) and one normalized to match the LM training data's orthography.
 
-  **Checking accuracy with a gold transcription**
+  Many more command-line options, including several that affect speed and accuracy, can be found below.  Among these, `-skipAlreadyTranscribedDocs` might be particularly useful.
+  
+  **Optional: Continued model improvements during transcription**
+  
+  Since training is a model is done in an unsupervised fashion (it requires no gold transcriptions), the operation of transcribing is actually a subset of EM font training.  Because of this, it is possible make further improvements to the models during transcription, without having to make multiple iterations over the documents.  This can be done by setting `-updateFont` to `true`, and `-updateDocBatchSize` to a reasonable number of training documents:
 
-  If a gold standard transcription is available for a file, it should be written in a `.txt` file in the same directory as the corresponding image, and given the same filename (but with a different extension).  These files will be used to evaluate the accuracy of the transcription (during either training or testing).  For example:
+      java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.Transcribe -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar \
+        -inputDocPath sample_images/advertencias \
+        -inputLmPath lm/trilingual.lmser \
+        -inputFontPath font/advertencias/trained.fontser \
+        -outputPath transcribe_output \
+        -updateFont true \
+        -updateDocBatchSize 50 \
+        -outputFontPath font/advertencias/trained.fontser
+      
+  The same can be done to update the glyph substitution model by passing in the previously-trained model (`-inputGsmPath`) and setting `-updateGsm` to `true`.
 
-      path/to/some/image_001.jpg      # document image
-      path/to/some/image_001.txt      # corresponding transcription
+        -allowGlyphSubstitution true \
+        -inputGsmPath gsm/advertencias/trained.gsmser \
+        -updateGsm true \
+        -outputGsmPath gsm/advertencias/trained.gsmser
+  
+  **Optional: Checking accuracy with a gold transcription**
+
+  If a gold standard transcription is available for a file, it should be written in a `.txt` file in the same directory as the corresponding image, and given the same filename (but with a different extension).  These files will be used to evaluate the accuracy of the transcription (during either training or testing).  Likewise, if a gold normalized transcription is available, it should be given the same filename, but with `_normalized` appended.  For example:
+
+      path/to/some/image_001.jpg              # document image
+      path/to/some/image_001.txt              # corresponding transcription
+      path/to/some/image_001_normalized.txt   # corresponding normalized transcription
 
   For pdf files, the transcription filename is based on both the pdf filename and the relevant page number (as a 5-digit number):
-  
-      path/to/some/filename.pdf                 # document image
-      path/to/some/filename_pdf_page00001.txt   # transcription of the document's first page
+
+      path/to/some/filename.pdf                            # document image
+      path/to/some/filename_pdf_page00001.txt              # transcription of the document's first page
+      path/to/some/filename_pdf_page00001_normalized.txt   # corresponding normalized transcription
 
 
 
 
 
 
-## All Command-Line Options
+## 2. All Command-Line Options
 
+### InitializeLanguageModel
 
-### TrainLanguageModel
+##### Required
 
-* `-lmPath`: Output Language Model file path. 
+* `-inputTextPath`:
+Path to the text files (or directory hierarchies) for training the LM.  For each entry, the entire directory will be recursively searched for any files that do not start with `.`.  For a multilingual (code-switching) model, give multiple comma-separated files with language names: "english->texts/english/,spanish->texts/spanish/,french->texts/french/".  Be sure to wrap the whole string with "quotes".)
 Required.
 
-* `-textPath`: Path to the text files (or directory hierarchies) for training the LM.  For each entry, the entire directory will be recursively searched for any files that do not start with a dot (`.`).  For a multilingual (code-switching) model, give multiple comma-separated files with language names: `"english->texts/english/,spanish->texts/spanish/,french->texts/french/"`.  If spaces are used, be sure to wrap the whole string with "quotes".).
+* `-outputLmPath`:
+Output LM file path.
 Required.
 
-* `-languagePriors`: Prior probability of each language; ignore for uniform priors. Give multiple comma-separated language/prior pairs: `english->0.7,spanish->0.2,french->0.1`. If spaces are used, be sure to wrap the whole string with "quotes".  (Only relevant if multiple languages used.) 
-Default: uniform priors
+##### Additional Options
 
-* `-pKeepSameLanguage`: Prior probability of sticking with the same language when moving between words in a code-switch model transition model.  (Only relevant if multiple languages used.) 
-Default: 0.999999
-
-* `-alternateSpellingReplacementPaths`: Paths to Alternate Spelling Replacement files. If just a simple path is given, the replacements will be applied to all languages.  For language-specific replacements, give multiple comma-separated language/path pairs: `english->rules/en.txt,spanish->rules/sp.txt,french->rules/fr.txt`. If spaces are used, be sure to wrap the whole string with "quotes". Any languages for which no replacements are needed can be safely ignored. 
-Default: no replacements
-
-* `-insertLongS`: Use separate character type for long s.
+* `-insertLongS`:
+Automatically insert "long s" characters into the language model training data?
 Default: false
 
-* `-removeDiacritics`: Remove diacritics? 
-Default: false
+* `-alternateSpellingReplacementPaths`:
+Paths to Alternate Spelling Replacement files. If just a simple path is given, the replacements will be applied to all languages.  For language-specific replacements, give multiple comma-separated language/path pairs: "english->rules/en.txt,spanish->rules/sp.txt,french->rules/fr.txt". Be sure to wrap the whole string with "quotes". Any languages for which no replacements are need can be safely ignored.
+Default: No alternate spelling replacements.
 
-* `-explicitCharacterSet`: A set of valid characters. If a character with a diacritic is found but not in this set, the diacritic will be dropped. Other excluded characters will simply be dropped. Ignore to allow all characters. *Not currently implemented*.
-Default: ...
-
-* `-maxLines`: Maximum number of lines to use from corpus.
-Default: 1000000
-
-* `-charN`: LM character n-gram length.
+* `-charN`:
+LM character n-gram length.
 Default: 6
 
-* `-power`: Exponent on LM scores.
+##### Rarely Used Options
+
+* `-removeDiacritics`:
+Remove diacritics?
+Default: false
+
+* `-pKeepSameLanguage`:
+Prior probability of sticking with the same language when moving between words in a code-switch model transition model. (Only relevant if multiple languages used.)
+Default: 0.999999
+
+* `-languagePriors`:
+Prior probability of each language; ignore for uniform priors. Give multiple comma-separated language/prior pairs: "english->0.7,spanish->0.2,french->0.1". Be sure to wrap the whole string with "quotes". (Only relevant if multiple languages used.)
+Default: Uniform priors.
+
+* `-lmPower`:
+Exponent on LM scores.
 Default: 4.0
 
-* `-lmCharCount`: Number of characters to use for training the LM.  Use -1 to indicate that the full training data should be used.
-Default: -1
+* `-explicitCharacterSet`:
+A set of valid characters. If a character with a diacritic is found but not in this set, the diacritic will be dropped. Other excluded characters will simply be dropped. Ignore to allow all characters.
+Default: Allow all characters.
 
-
+* `-lmCharCount`:
+Number of characters to use for training the LM.  Use 0 to indicate that the full training data should be used.
+Default: Use all documents in full.
 
 ### InitializeFont
 
-* `-lmPath`: Path to the language model file (so that it knows which characters to create images for).
+##### Required
+
+* `-inputLmPath`:
+Path to the language model file (so that it knows which characters to create images for).
 Required.
 
-* `-fontPath`: Output font file path.
+* `-outputFontPath`:
+Output font file path.
 Required.
 
-* `-numFontInitThreads`: Number of threads to use.
-Deafult: 8
+##### Additional Options
 
-* `-templateMaxWidthFraction`: Max template width as fraction of text line height.
+* `-allowedFontsPath`:
+Path to a file that contains a custom list of font names that may be used to initialize the font. The file should contain one font name per line.
+Default: Use all valid fonts found on the computer.
+
+##### Rarely Used Options
+
+* `-numFontInitThreads`:
+Number of threads to use.
+Default: 8
+
+* `-spaceMaxWidthFraction`:
+Max space template width as fraction of text line height.
 Default: 1.0
 
-* `-templateMinWidthFraction`: Min template width as fraction of text line height.
+* `-spaceMinWidthFraction`:
+Min space template width as fraction of text line height.
 Default: 0.0
 
-* `-spaceMaxWidthFraction`: Max space template width as fraction of text line height.
+* `-templateMaxWidthFraction`:
+Max template width as fraction of text line height.
 Default: 1.0
 
-* `-spaceMinWidthFraction`: Min space template width as fraction of text line height.
+* `-templateMinWidthFraction`:
+Min template width as fraction of text line height.
 Default: 0.0
 
+### TrainFont
 
+##### Main Options
 
-### TranscribeOrTrainFont
+* `-inputDocPath`:
+Path to the directory that contains the input document images. The entire directory will be searched recursively for any files that do not end in `.txt` (and that do not start with `.`).  Files will be processed in lexicographical order.
+Default: Either inputDocPath or inputDocListPath is required.
 
-* `-inputPath`: Path of the directory that contains the input document images or pdfs. The entire directory will be recursively searched for any files that do not end in `.txt` (and that do not start with `.`).
+* `-inputDocListPath`:
+Path to a file that contains a list of paths to images files that should be used.  The file should contain one path per line. These paths will be searched in order.  Each path may point to either a file or a directory, which will be searched recursively for any files that do not end in `.txt` (and that do not start with `.`).  Paths will be processed in the order given in the file, and each path will be searched in lexicographical order.
+Default: Either inputDocPath or inputDocListPath is required.
+
+* `-inputFontPath`:
+Path of the input font file.
 Required.
 
-* `-numDocs`: Number of documents (pages) to use, counting alphabetically. Ignore or use -1 to use all documents.
-Default: use all documents
+* `-inputLmPath`:
+Path to the input language model file.
+Required.
 
-* `-numDocsToSkip`: Number of training documents (pages) to skip over, counting alphabetically.  Useful, in combination with -numDocs, if you want to break a directory of documents into several chunks without having to actually create separate directories.
+* `-numDocs`:
+Number of documents (pages) to use, counting alphabetically. Ignore or use 0 to use all documents.
+Default: Use all documents.
+
+* `-numDocsToSkip`:
+Number of training documents (pages) to skip over, counting alphabetically.  Useful, in combination with -numDocs, if you want to break a directory of documents into several chunks.
 Default: 0
 
-* `-lmPath`: Path to the language model file.
-Required.
-
-* `-initFontPath`: Path of the font initializer file.
-Required.
-
-* `-learnFont`: Whether to learn the font from the input documents and write the font to a file.
-Default: false
-
-* `-numEMIters`: Number of iterations of EM to use for font learning. (Only relevant if learnFont is set to true.)
+* `-numEMIters`:
+Number of iterations of EM to use for font learning.
 Default: 3
 
-* `-updateBatchSize`: Number of documents to process for each parameter update.  (Only relevant if learnFont is set to true.)  This is useful if you are transcribing a large number of documents, and want to have Ocular slowly improve the model as it goes, which you would achieve with trainFont=true and numEMIter=1 (though this could also be achieved by simply running a series of smaller font training jobs each with numEMIter=1, which each subsequent job uses the model output by the previous).  Default is to update only after each full pass over the document set.
-
-* `-accumulateBatchesWithinIter`: Should the counts from each batch accumulate with the previous batches, as opposed to each batch starting fresh?  Note that the counts will always be refreshed after a full pass through the documents.  (Only relevant if learnFont is set to true and updateDocBatchSize is used.)  Default: true
-	
-* `-minDocBatchSize`: The minimum number of documents that may be used to make a batch for updating parameters.  If the last batch of a pass will contain fewer than this many documents, then lump them in with the last complete batch.  Useful if you are transcribing a large number of documents, and want to have Ocular slowly improve the model as it goes.  (Only relevant if learnFont is set to true and updateDocBatchSize is used.)  Default is to always lump remaining documents in with the last complete batch.
-
-* `-outputPath`: Path of the directory that will contain output transcriptions and line extractions.
-Required.
-
-* `-extractedLinesPath`: Path of the directory where the line-extraction images should be read/written.  If the line files exist here, they will be used; if not, they will be extracted and then written here.  Useful if: 1) you plan to run Ocular on the same documents multiple times and you want to save some time by not re-extracting the lines, or 2) you use an alternate line extractor (such as Tesseract) to pre-process the document.  If ignored, the document will simply be read from the original document image file, and no line images will be written.  
-Default: Don't read or write line image files.
-
-* `-outputFontPath`: Path to write the learned font file to.
-Required if learnFont is set to true, otherwise ignored.
-
-* `-retrainLM`: Should the language model be updated during font training?  Default: false
-
-* `-outputLmPath`: Path to write the retrained language model file to. (Only relevant if retrainLM is set to true.)  
-Default: Don't write out the trained LM.
-
-* `-allowLanguageSwitchOnPunct`: A language model to be used to assign diacritics to the transcription output.
-Default: true
-
-* `-binarizeThreshold`: Quantile to use for pixel value thresholding. (High values mean more black pixels.)
-Default: 0.12
-
-* `-crop`: Crop pages? Useful when the image has a border around the page.
-Default: true
-
-* `-uniformLineHeight`: Scale all lines to have the same height?
-Default: true
-
-* `-markovVerticalOffset`: Use Markov chain to generate vertical offsets. (Slower, but more accurate. Turning on Markov offsets my require larger beam size for good results.)
+* `-continueFromLastCompleteIteration`:
+If true, the font trainer will find the latest completed iteration in the outputPath and load it in order to pick up training from that point.  Convenient if a training run crashes when only partially completed.
 Default: false
 
-* `-beamSize`: Size of beam for Viterbi inference. (Usually in range 10-50. Increasing beam size can improve accuracy, but will reduce speed.)
-Default: 10
+* `-outputPath`:
+Path of the directory that will contain output transcriptions.
+Required.
 
-* `-emissionEngine`: Engine to use for inner loop of emission cache computation. `DEFAULT`: Uses Java on CPU, which works on any machine but is the slowest method. `OPENCL`: Faster engine that uses either the CPU or integrated GPU (depending on processor) and requires OpenCL installation. `CUDA`: Fastest method, but requires a discrete NVIDIA GPU and CUDA installation.
+* `-outputFontPath`:
+Path to write the learned font file to.
+Required if updateFont is set to true, otherwise ignored.
+
+##### Additional Options
+
+* `-extractedLinesPath`:
+Path of the directory where the line-extraction images should be read/written.  If the line files exist here, they will be used; if not, they will be extracted and then written here.  Useful if: 1) you plan to run Ocular on the same documents multiple times and you want to save some time by not re-extracting the lines, or 2) you use an alternate line extractor (such as Tesseract) to pre-process the document.  If ignored, the document will simply be read from the original document image file, and no line images will be written.
+Default: Don't read or write line image files.
+
+* `-updateDocBatchSize`:
+Number of documents to process for each parameter update.  This is useful if you are transcribing a large number of documents, and want to have Ocular slowly improve the model as it goes, which you would achieve with updateFont=true.
+Default: Update only after each full pass over the document set.
+
+These options affect the speed of font training
+
+* `-emissionEngine`:
+Engine to use for inner loop of emission cache computation. `DEFAULT`: Uses Java on CPU, which works on any machine but is the slowest method. `OPENCL`: Faster engine that uses either the CPU or integrated GPU (depending on processor) and requires OpenCL installation. `CUDA`: Fastest method, but requires a discrete NVIDIA GPU and CUDA installation.
 Default: DEFAULT
 
-* `-cudaDeviceID`: GPU ID when using CUDA emission engine.
+* `-beamSize`:
+Size of beam for Viterbi inference. (Usually in range 10-50. Increasing beam size can improve accuracy, but will reduce speed.)
+Default: 10
+
+* `-markovVerticalOffset`:
+Use Markov chain to generate vertical offsets. (Slower, but more accurate. Turning on Markov offsets my require larger beam size for good results.)
+Default: false
+
+##### Glyph Substitution Model Options
+
+Glyph substitution is the feature that allows Ocular to use a probabilistic mapping from modern orthography (as used in the language model training text) to the orthography seen in the documents. If the glyph substitution feature is used, Ocular will jointly produce dual transcriptions: one that is an exact transcription of the document, and one that is a normalized version of the text.
+
+* `-allowGlyphSubstitution`:
+Should the model allow glyph substitutions? This includes substituted letters as well as letter elisions.
+Default: false
+
+* `-inputGsmPath`:
+Path to the input glyph substitution model file. (Only relevant if allowGlyphSubstitution is set to true.)
+Default: Don't use a pre-initialized GSM. (Learn one from scratch).
+
+* `-updateGsm`:
+Should the glyph substitution model be trained (or updated) along with the font? (Only relevant if allowGlyphSubstitution is set to true.)
+Default: false
+
+* `-outputGsmPath`:
+Path to write the retrained glyph substitution model file to.
+Required if updateGsm is set to true, otherwise ignored.
+
+##### Language Model Training Options
+
+* `-updateLM`:
+Should the language model be updated along with the font?
+Default: false
+
+* `-outputLmPath`:
+Path to write the retrained language model file to.
+Required if updateLM is set to true, otherwise ignored.
+
+##### Line Extraction Options
+
+* `-binarizeThreshold`:
+Quantile to use for pixel value thresholding. (High values mean more black pixels.)
+Default: 0.12
+
+* `-crop`:
+Crop pages?
+Default: true
+
+##### Evaluate During Training
+
+* `-evalInputDocPath`:
+When evaluation should be done during training (after each parameter update in EM), this is the path of the directory that contains the evaluation input document images. The entire directory will be recursively searched for any files that do not end in `.txt` (and that do not start with `.`). (Only relevant if updateFont is set to true.)
+Default: Do not evaluate during font training.
+
+* `-evalNumDocs`:
+When using -evalInputDocPath, this is the number of documents that will be evaluated on. Ignore or use 0 to use all documents.
+Default: Use all documents in the specified path.
+
+* `-evalExtractedLinesPath`:
+When using -evalInputDocPath, this is the path of the directory where the evaluation line-extraction images should be read/written.  If the line files exist here, they will be used; if not, they will be extracted and then written here.  Useful if: 1) you plan to run Ocular on the same documents multiple times and you want to save some time by not re-extracting the lines, or 2) you use an alternate line extractor (such as Tesseract) to pre-process the document.  If ignored, the document will simply be read from the original document image file, and no line images will be written.
+Default: Don't read or write line image files.
+
+* `-evalFreq`:
+When using -evalInputDocPath, the font trainer will perform an evaluation every `evalFreq` iterations.
+Default: Evaluate only after all iterations have completed.
+
+* `-evalBatches`:
+When using -evalInputDocPath, on iterations in which we run the evaluation, should the evaluation be run after each batch, as determined by -updateDocBatchSize (in addition to after each iteration)?
+Default: false
+
+##### Rarely Used Options
+
+* `-allowLanguageSwitchOnPunct`:
+A language model to be used to assign diacritics to the transcription output.
+Default: true
+
+* `-cudaDeviceID`:
+GPU ID when using CUDA emission engine.
 Default: 0
 
-* `-numMstepThreads`: Number of threads to use for LFBGS during m-step.
-Default: 8
-
-* `-numEmissionCacheThreads`: Number of threads to use during emission cache compuation. (Only has effect when emissionEngine is set to DEFAULT.)
-Default: 8
-
-* `-numDecodeThreads`: Number of threads to use for decoding. (Should be no smaller than decodeBatchSize.)
-Default: 8
-
-* `-decodeBatchSize`: Number of lines that compose a single decode batch. (Smaller batch size can reduce memory consumption.)
+* `-decodeBatchSize`:
+Number of lines that compose a single decode batch. (Smaller batch size can reduce memory consumption.)
 Default: 32
 
-* `-paddingMinWidth`: Min horizontal padding between characters in pixels. (Best left at default value: 1.)
-Default: 1
+* `-gsmElideAnything`:
+Should the GSM be allowed to elide letters even without the presence of an elision-marking tilde?
+Default: false
 
-* `-paddingMaxWidth`: Max horizontal padding between characters in pixels (Best left at default value: 5.)
+* `-gsmElisionSmoothingCountMultiplier`:
+gsmElisionSmoothingCountMultiplier.
+Default: 100.0
+
+* `-gsmNoCharSubPrior`:
+The prior probability of not-substituting the LM char. This includes substituted letters as well as letter elisions.
+Default: 0.9
+
+* `-gsmPower`:
+Exponent on GSM scores.
+Default: 4.0
+
+* `-gsmSmoothingCount`:
+The default number of counts that every glyph gets in order to smooth the glyph substitution model estimation.
+Default: 1.0
+
+* `-paddingMaxWidth`:
+Max horizontal padding between characters in pixels (Best left at default value.)
 Default: 5
 
+* `-paddingMinWidth`:
+Min horizontal padding between characters in pixels. (Best left at default value.)
+Default: 1
 
+* `-uniformLineHeight`:
+Scale all lines to have the same height?
+Default: true
 
+* `-numDecodeThreads`:
+Number of threads to use for decoding. (More thread may increase speed, but may cause a loss of continuity across lines.)
+Default: 1
+
+* `-numEmissionCacheThreads`:
+Number of threads to use during emission cache computation. (Only has effect when emissionEngine is set to DEFAULT.)
+Default: 8
+
+* `-numMstepThreads`:
+Number of threads to use for LFBGS during m-step.
+Default: 8
+
+### Transcribe
+
+##### Main Options
+
+* `-inputDocPath`:
+Path to the directory that contains the input document images. The entire directory will be searched recursively for any files that do not end in `.txt` (and that do not start with `.`).  Files will be processed in lexicographical order.
+Default: Either inputDocPath or inputDocListPath is required.
+
+* `-inputDocListPath`:
+Path to a file that contains a list of paths to images files that should be used.  The file should contain one path per line. These paths will be searched in order.  Each path may point to either a file or a directory, which will be searched recursively for any files that do not end in `.txt` (and that do not start with `.`).  Paths will be processed in the order given in the file, and each path will be searched in lexicographical order.
+Default: Either inputDocPath or inputDocListPath is required.
+
+* `-inputFontPath`:
+Path of the input font file.
+Required.
+
+* `-inputLmPath`:
+Path to the input language model file.
+Required.
+
+* `-numDocs`:
+Number of documents (pages) to use, counting alphabetically. Ignore or use 0 to use all documents.
+Default: Use all documents.
+
+* `-numDocsToSkip`:
+Number of training documents (pages) to skip over, counting alphabetically.  Useful, in combination with -numDocs, if you want to break a directory of documents into several chunks.
+Default: 0
+
+* `-skipAlreadyTranscribedDocs`:
+If true, for each doc the outputPath will be checked for an existing transcription and if one is found then the document will be skipped.
+Default: false
+
+* `-outputPath`:
+Path of the directory that will contain output transcriptions.
+Required.
+
+##### Additional Options
+
+* `-extractedLinesPath`:
+Path of the directory where the line-extraction images should be read/written.  If the line files exist here, they will be used; if not, they will be extracted and then written here.  Useful if: 1) you plan to run Ocular on the same documents multiple times and you want to save some time by not re-extracting the lines, or 2) you use an alternate line extractor (such as Tesseract) to pre-process the document.  If ignored, the document will simply be read from the original document image file, and no line images will be written.
+Default: Don't read or write line image files.
+
+* `-failIfAllDocsAlreadyTranscribed`:
+If true, an exception will be thrown if all of the input documents have already been transcribed (and thus the job has nothing to do).  Ignored unless -skipAlreadyTranscribedDocs=true.
+Default: false
+
+These options affect the speed of transcription
+
+* `-emissionEngine`:
+Engine to use for inner loop of emission cache computation. `DEFAULT`: Uses Java on CPU, which works on any machine but is the slowest method. `OPENCL`: Faster engine that uses either the CPU or integrated GPU (depending on processor) and requires OpenCL installation. `CUDA`: Fastest method, but requires a discrete NVIDIA GPU and CUDA installation.
+Default: DEFAULT
+
+* `-beamSize`:
+Size of beam for Viterbi inference. (Usually in range 10-50. Increasing beam size can improve accuracy, but will reduce speed.)
+Default: 10
+
+* `-markovVerticalOffset`:
+Use Markov chain to generate vertical offsets. (Slower, but more accurate. Turning on Markov offsets my require larger beam size for good results.)
+Default: false
+
+##### Glyph Substitution Model Options
+
+Glyph substitution is the feature that allows Ocular to use a probabilistic mapping from modern orthography (as used in the language model training text) to the orthography seen in the documents. If the glyph substitution feature is used, Ocular will jointly produce dual transcriptions: one that is an exact transcription of the document, and one that is a normalized version of the text.
+
+* `-allowGlyphSubstitution`:
+Should the model allow glyph substitutions? This includes substituted letters as well as letter elisions.
+Default: false
+
+* `-inputGsmPath`:
+Path to the input glyph substitution model file. (Only relevant if allowGlyphSubstitution is set to true.)
+Default: Don't use a pre-initialized GSM. (Learn one from scratch).
+
+##### Model Updating Options
+
+* `-updateDocBatchSize`:
+Number of documents to process for each parameter update.  This is useful if you are transcribing a large number of documents, and want to have Ocular slowly improve the model as it goes, which you would achieve with updateFont=true.
+Default: Update only after each full pass over the document set.
+
+For updating the font model
+
+* `-updateFont`:
+Update the font during transcription based on the new input documents?
+Default: false
+
+* `-outputFontPath`:
+Path to write the learned font file to.
+Required if updateFont is set to true, otherwise ignored.
+
+For updating the glyph substitution model
+
+* `-updateGsm`:
+Should the glyph substitution model be trained (or updated) along with the font? (Only relevant if allowGlyphSubstitution is set to true.)
+Default: false
+
+* `-outputGsmPath`:
+Path to write the retrained glyph substitution model file to.
+Required if updateGsm is set to true, otherwise ignored.
+
+For updating the language model
+
+* `-updateLM`:
+Should the language model be updated along with the font?
+Default: false
+
+* `-outputLmPath`:
+Path to write the retrained language model file to.
+Required if updateLM is set to true, otherwise ignored.
+
+##### Line Extraction Options
+
+* `-binarizeThreshold`:
+Quantile to use for pixel value thresholding. (High values mean more black pixels.)
+Default: 0.12
+
+* `-crop`:
+Crop pages?
+Default: true
+
+##### Evaluate During Training
+
+* `-evalInputDocPath`:
+When evaluation should be done during training (after each parameter update in EM), this is the path of the directory that contains the evaluation input document images. The entire directory will be recursively searched for any files that do not end in `.txt` (and that do not start with `.`). (Only relevant if updateFont is set to true.)
+Default: Do not evaluate during font training.
+
+* `-evalNumDocs`:
+When using -evalInputDocPath, this is the number of documents that will be evaluated on. Ignore or use 0 to use all documents.
+Default: Use all documents in the specified path.
+
+* `-evalBatches`:
+When using -evalInputDocPath, on iterations in which we run the evaluation, should the evaluation be run after each batch, as determined by -updateDocBatchSize (in addition to after each iteration)?
+Default: false
+
+* `-evalExtractedLinesPath`:
+When using -evalInputDocPath, this is the path of the directory where the evaluation line-extraction images should be read/written.  If the line files exist here, they will be used; if not, they will be extracted and then written here.  Useful if: 1) you plan to run Ocular on the same documents multiple times and you want to save some time by not re-extracting the lines, or 2) you use an alternate line extractor (such as Tesseract) to pre-process the document.  If ignored, the document will simply be read from the original document image file, and no line images will be written.
+Default: Don't read or write line image files.
+
+##### Rarely Used Options
+
+* `-allowLanguageSwitchOnPunct`:
+A language model to be used to assign diacritics to the transcription output.
+Default: true
+
+* `-cudaDeviceID`:
+GPU ID when using CUDA emission engine.
+Default: 0
+
+* `-decodeBatchSize`:
+Number of lines that compose a single decode batch. (Smaller batch size can reduce memory consumption.)
+Default: 32
+
+* `-gsmElideAnything`:
+Should the GSM be allowed to elide letters even without the presence of an elision-marking tilde?
+Default: false
+
+* `-gsmElisionSmoothingCountMultiplier`:
+gsmElisionSmoothingCountMultiplier.
+Default: 100.0
+
+* `-gsmNoCharSubPrior`:
+The prior probability of not-substituting the LM char. This includes substituted letters as well as letter elisions.
+Default: 0.9
+
+* `-gsmPower`:
+Exponent on GSM scores.
+Default: 4.0
+
+* `-gsmSmoothingCount`:
+The default number of counts that every glyph gets in order to smooth the glyph substitution model estimation.
+Default: 1.0
+
+* `-paddingMaxWidth`:
+Max horizontal padding between characters in pixels (Best left at default value.)
+Default: 5
+
+* `-paddingMinWidth`:
+Min horizontal padding between characters in pixels. (Best left at default value.)
+Default: 1
+
+* `-uniformLineHeight`:
+Scale all lines to have the same height?
+Default: true
+
+* `-numDecodeThreads`:
+Number of threads to use for decoding. (More thread may increase speed, but may cause a loss of continuity across lines.)
+Default: 1
+
+* `-numEmissionCacheThreads`:
+Number of threads to use during emission cache computation. (Only has effect when emissionEngine is set to DEFAULT.)
+Default: 8
+
+* `-numMstepThreads`:
+Number of threads to use for LFBGS during m-step.
+Default: 8

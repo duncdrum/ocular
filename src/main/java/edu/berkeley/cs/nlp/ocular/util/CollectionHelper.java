@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class CollectionHelper {
 
@@ -131,6 +131,16 @@ public class CollectionHelper {
 		}
 	}
 
+	public static <A> List<A> flatten(List<List<A>> list) {
+		List<A> r = new ArrayList<A>();
+		for (List<A> l : list) {
+			for (A a : l) {
+				r.add(a);
+			}
+		}
+		return r;
+	}
+
 	public static <A> Iterator<List<A>> sliding(List<A> list, int n) {
 		return new SlidingIterator<A>(list, n);
 	}
@@ -179,6 +189,10 @@ public class CollectionHelper {
 		return result;
 	}
 
+	public static <A> A last(List<A> list) {
+		return list.isEmpty() ? null : list.get(list.size()-1);
+	}
+
 	public static List<Integer> intArrayToList(int[] a) {
 		List<Integer> l = new ArrayList<Integer>(a.length);
 		for (int x: a) l.add(x);
@@ -193,12 +207,26 @@ public class CollectionHelper {
 		return a;
 	}
 	
-	public static <A,B> int longestCommonPrefix(List<A> as, List<B> bs) {
+	public static <T> int longestCommonPrefix(List<List<T>> paths) {
+		int[] lengths = new int[paths.size()];
+		int minLength = Integer.MAX_VALUE;
+		for (int i = 0; i < paths.size(); ++i) {
+			int len = paths.get(i).size();
+			lengths[i] = len;
+			if (len < minLength)
+				minLength = len;
+		}
+		
 		int longestCommonPrefix = 0;
-		int aLen = as.size();
-		int bLen = bs.size();
-		while (longestCommonPrefix < aLen && longestCommonPrefix < bLen && as.get(longestCommonPrefix).equals(bs.get(longestCommonPrefix))) 
+		while (longestCommonPrefix < minLength) {
+			List<T> headPath = paths.get(0);
+			for (List<T> path : paths) {
+				if (!headPath.get(longestCommonPrefix).equals(path.get(longestCommonPrefix))) {
+					return longestCommonPrefix;
+				}
+			}
 			++longestCommonPrefix;
+		}
 		return longestCommonPrefix;
 	}
 	

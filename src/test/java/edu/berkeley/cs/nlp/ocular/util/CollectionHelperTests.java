@@ -1,5 +1,7 @@
 package edu.berkeley.cs.nlp.ocular.util;
 
+import static edu.berkeley.cs.nlp.ocular.util.Tuple2.Tuple2;
+import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
@@ -23,9 +25,9 @@ public class CollectionHelperTests {
 
 	@Test
 	public void test_makeMap() {
-		Tuple2<String, Integer> t1 = Tuple2.makeTuple2("one", 21);
-		Tuple2<String, Integer> t2 = Tuple2.makeTuple2("two", 22);
-		Tuple2<String, Integer> t3 = Tuple2.makeTuple2("three", 23);
+		Tuple2<String, Integer> t1 = Tuple2("one", 21);
+		Tuple2<String, Integer> t2 = Tuple2("two", 22);
+		Tuple2<String, Integer> t3 = Tuple2("three", 23);
 		
 		Map<String, Integer> m0 = CollectionHelper.makeMap();
 		assertEquals(0, m0.size());
@@ -52,8 +54,8 @@ public class CollectionHelperTests {
 
 	@Test
 	public void test_Map_getOrElse() {
-		Tuple2<String, Integer> t1 = Tuple2.makeTuple2("one", 21);
-		Tuple2<String, Integer> t2 = Tuple2.makeTuple2("two", 22);
+		Tuple2<String, Integer> t1 = Tuple2("one", 21);
+		Tuple2<String, Integer> t2 = Tuple2("two", 22);
 		Map<String, Integer> m2 = CollectionHelper.makeMap(t1, t2);
 
 		assertEquals(2, m2.size());
@@ -209,7 +211,7 @@ public class CollectionHelperTests {
 		assertEquals("two", l1.get(1));
 		assertEquals("three", l1.get(2));
 		
-		List<String> l2 = CollectionHelper.listCat(Arrays.asList("one", "two", "three"), Arrays.asList(), Arrays.asList("four", "five"));
+		List<String> l2 = CollectionHelper.listCat(Arrays.asList("one", "two", "three"), Arrays.<String>asList(), Arrays.asList("four", "five"));
 		assertEquals(5, l2.size());
 		assertEquals("one", l2.get(0));
 		assertEquals("two", l2.get(1));
@@ -283,12 +285,13 @@ public class CollectionHelperTests {
 	
 	@Test
 	public void test_longestCommonPrefix() {
-		assertEquals(0, CollectionHelper.longestCommonPrefix(Arrays.asList(), Arrays.asList()));
-		assertEquals(0, CollectionHelper.longestCommonPrefix(Arrays.asList(1), Arrays.asList()));
-		assertEquals(0, CollectionHelper.longestCommonPrefix(Arrays.asList(), Arrays.asList(2)));
-		assertEquals(0, CollectionHelper.longestCommonPrefix(Arrays.asList(1), Arrays.asList(2)));
-		assertEquals(2, CollectionHelper.longestCommonPrefix(Arrays.asList(1, 2), Arrays.asList(1, 2, 3, 4)));
-		assertEquals(2, CollectionHelper.longestCommonPrefix(Arrays.asList(1, 2, 3, 4), Arrays.asList(1, 2)));
-		assertEquals(3, CollectionHelper.longestCommonPrefix(Arrays.asList(1, 2, 3), Arrays.asList(1, 2, 3)));
+		assertEquals(0, CollectionHelper.longestCommonPrefix(asList(Arrays.<Integer>asList(), Arrays.<Integer>asList())));
+		assertEquals(0, CollectionHelper.longestCommonPrefix(asList(Arrays.<Integer>asList(1), Arrays.<Integer>asList())));
+		assertEquals(0, CollectionHelper.longestCommonPrefix(asList(Arrays.<Integer>asList(), Arrays.<Integer>asList(2))));
+		assertEquals(0, CollectionHelper.longestCommonPrefix(asList(Arrays.<Integer>asList(1), Arrays.<Integer>asList(2))));
+		assertEquals(2, CollectionHelper.longestCommonPrefix(asList(Arrays.<Integer>asList(1, 2), Arrays.<Integer>asList(1, 2, 3, 4))));
+		assertEquals(2, CollectionHelper.longestCommonPrefix(asList(Arrays.<Integer>asList(1, 2, 3, 4), Arrays.<Integer>asList(1, 2))));
+		assertEquals(3, CollectionHelper.longestCommonPrefix(asList(Arrays.<Integer>asList(1, 2, 3), Arrays.<Integer>asList(1, 2, 3))));
+		assertEquals(2, CollectionHelper.longestCommonPrefix(asList(Arrays.<Integer>asList(1, 2, 3), Arrays.<Integer>asList(1, 2), Arrays.<Integer>asList(1, 2, 3, 4))));
 	}
 }

@@ -2,7 +2,7 @@ package edu.berkeley.cs.nlp.ocular.main;
 
 import static edu.berkeley.cs.nlp.ocular.data.textreader.Charset.HYPHEN;
 import static edu.berkeley.cs.nlp.ocular.data.textreader.Charset.SPACE;
-import indexer.Indexer;
+import static edu.berkeley.cs.nlp.ocular.util.Tuple2.Tuple2;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -10,35 +10,36 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import threading.BetterThreader;
 import arrays.a;
-import edu.berkeley.cs.nlp.ocular.data.ImageLoader;
-import edu.berkeley.cs.nlp.ocular.data.ImageLoader.Document;
+import edu.berkeley.cs.nlp.ocular.data.Document;
 import edu.berkeley.cs.nlp.ocular.data.TextAndLineImagesLoader;
 import edu.berkeley.cs.nlp.ocular.eval.Evaluator;
 import edu.berkeley.cs.nlp.ocular.eval.Evaluator.EvalSuffStats;
+import edu.berkeley.cs.nlp.ocular.font.Font;
 import edu.berkeley.cs.nlp.ocular.image.ImageUtils;
 import edu.berkeley.cs.nlp.ocular.image.ImageUtils.PixelType;
 import edu.berkeley.cs.nlp.ocular.image.Visualizer;
 import edu.berkeley.cs.nlp.ocular.lm.NgramLanguageModel;
-import edu.berkeley.cs.nlp.ocular.model.BeamingSemiMarkovDP;
-import edu.berkeley.cs.nlp.ocular.model.CUDAInnerLoop;
-import edu.berkeley.cs.nlp.ocular.model.CachingEmissionModel;
-import edu.berkeley.cs.nlp.ocular.model.CachingEmissionModelExplicitOffset;
-import edu.berkeley.cs.nlp.ocular.model.CharacterNgramTransitionModel;
-import edu.berkeley.cs.nlp.ocular.model.CharacterNgramTransitionModelMarkovOffset;
 import edu.berkeley.cs.nlp.ocular.model.CharacterTemplate;
-import edu.berkeley.cs.nlp.ocular.model.DefaultInnerLoop;
-import edu.berkeley.cs.nlp.ocular.model.DenseBigramTransitionModel;
-import edu.berkeley.cs.nlp.ocular.model.EmissionCacheInnerLoop;
-import edu.berkeley.cs.nlp.ocular.model.EmissionModel;
-import edu.berkeley.cs.nlp.ocular.model.OpenCLInnerLoop;
-import edu.berkeley.cs.nlp.ocular.model.SparseTransitionModel;
-import edu.berkeley.cs.nlp.ocular.model.SparseTransitionModel.TransitionState;
+import edu.berkeley.cs.nlp.ocular.model.em.BeamingSemiMarkovDP;
+import edu.berkeley.cs.nlp.ocular.model.em.CUDAInnerLoop;
+import edu.berkeley.cs.nlp.ocular.model.em.DefaultInnerLoop;
+import edu.berkeley.cs.nlp.ocular.model.em.DenseBigramTransitionModel;
+import edu.berkeley.cs.nlp.ocular.model.em.EmissionCacheInnerLoop;
+import edu.berkeley.cs.nlp.ocular.model.em.OpenCLInnerLoop;
+import edu.berkeley.cs.nlp.ocular.model.emission.CachingEmissionModel;
+import edu.berkeley.cs.nlp.ocular.model.emission.CachingEmissionModelExplicitOffset;
+import edu.berkeley.cs.nlp.ocular.model.emission.EmissionModel;
+import edu.berkeley.cs.nlp.ocular.model.transition.CharacterNgramTransitionModel;
+import edu.berkeley.cs.nlp.ocular.model.transition.CharacterNgramTransitionModelMarkovOffset;
+import edu.berkeley.cs.nlp.ocular.model.transition.SparseTransitionModel;
+import edu.berkeley.cs.nlp.ocular.model.transition.SparseTransitionModel.TransitionState;
 import edu.berkeley.cs.nlp.ocular.util.Tuple2;
 import fig.Execution;
 import fig.Option;
 import fileio.f;
+import indexer.Indexer;
+import threading.BetterThreader;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
@@ -127,8 +128,8 @@ public class ExperimentsMain implements Runnable {
 		
 		List<Tuple2<String,Map<String,EvalSuffStats>>> allEvals = new ArrayList<Tuple2<String,Map<String,EvalSuffStats>>>();
 		
-		ImageLoader loader =  new TextAndLineImagesLoader(inputPath, CharacterTemplate.LINE_HEIGHT);
-		List<Document> documents = loader.readDataset();
+		List<Document> documents = TextAndLineImagesLoader.loadDocuments(inputPath, CharacterTemplate.LINE_HEIGHT);
+		if (documents.isEmpty()) throw new NoDocumentsFoundException();
 
 		for (Document doc : documents) {
 			System.out.println("Loading LM..");
@@ -137,7 +138,7 @@ public class ExperimentsMain implements Runnable {
 			final Indexer<String> charIndexer = lm.getCharacterIndexer();
 			
 			System.out.println("Loading font initializer..");
-			Map<String,CharacterTemplate> font = InitializeFont.readFont(fontPath);
+			Font font = InitializeFont.readFont(fontPath);
 			final CharacterTemplate[] templates = new CharacterTemplate[charIndexer.size()];
 			for (int c=0; c<templates.length; ++c) {
 				templates[c] = font.get(charIndexer.getObject(c));
@@ -147,7 +148,7 @@ public class ExperimentsMain implements Runnable {
 			System.out.println("Num characters: " + charIndexer.size());
 			
 			final PixelType[][][] pixels = doc.loadLineImages();
-			final String[][] text = doc.loadLineText();
+			final String[][] text = doc.loadDiplomaticTextLines();
 
 			final EmissionModel emissionModel = (markovVerticalOffset ? new CachingEmissionModelExplicitOffset(templates, charIndexer, pixels, paddingMinWidth, paddingMaxWidth, emissionInnerLoop) : new CachingEmissionModel(templates, charIndexer, pixels, paddingMinWidth, paddingMaxWidth, emissionInnerLoop));
 			
@@ -194,9 +195,8 @@ public class ExperimentsMain implements Runnable {
 						BetterThreader<Integer,Object> threader1 = new BetterThreader<Integer,Object>(func1, numMstepThreads);
 						for (int line=0; line<emissionModel.numSequences(); ++line) threader1.addFunctionArgument(line);
 						threader1.run();
-						final int iterFinal = iter;
 						BetterThreader.Function<Integer,Object> func2 = new BetterThreader.Function<Integer,Object>(){public void call(Integer c, Object ignore){
-							if (templates[c] != null) templates[c].updateParameters(iterFinal);
+							if (templates[c] != null) templates[c].updateParameters();
 						}};
 						BetterThreader<Integer,Object> threader2 = new BetterThreader<Integer,Object>(func2, numMstepThreads);
 						for (int c=0; c<templates.length; ++c) threader2.addFunctionArgument(c);
@@ -261,7 +261,7 @@ public class ExperimentsMain implements Runnable {
 
 				int t = 0;
 				for (int di=0; di<decodeStates[d].length; ++di) {
-					int c = decodeStates[d][di].getCharIndex();
+					int c = decodeStates[d][di].getGlyphChar().templateCharIndex;
 					int w = decodeWidths[d][di];
 					int e = emissionModel.getExposure(d, t, decodeStates[d][di], w);
 					int offset = emissionModel.getOffset(d, t, decodeStates[d][di], w);
@@ -343,9 +343,9 @@ public class ExperimentsMain implements Runnable {
 					guessAndGoldOut.append("\n");
 				}
 
-				Map<String,EvalSuffStats> evals = Evaluator.getUnsegmentedEval(viterbiChars, goldCharSequences);
+				Map<String,EvalSuffStats> evals = Evaluator.getUnsegmentedEval(viterbiChars, goldCharSequences, true);
 				if (iter == ExperimentsMain.numEMIters-1) {
-					allEvals.add(Tuple2.makeTuple2(doc.baseName(), evals));
+					allEvals.add(Tuple2(doc.baseName(), evals));
 				}
 				System.out.println(guessAndGoldOut.toString()+Evaluator.renderEval(evals));
 

@@ -1,58 +1,58 @@
 package edu.berkeley.cs.nlp.ocular.lm;
 
-import static edu.berkeley.cs.nlp.ocular.util.CollectionHelper.map1;
-import indexer.Indexer;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import edu.berkeley.cs.nlp.ocular.util.Tuple2;
+import indexer.Indexer;
 
 /**
  * TODO: Move some of the probability calculations from CodeSwitchTransitionModel to here?
  * 
- * @author Dan Garrette (dhg@cs.utexas.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
  */
 public class BasicCodeSwitchLanguageModel implements CodeSwitchLanguageModel {
-	private static final long serialVersionUID = 498752498346537382L;
+	private static final long serialVersionUID = 3298359823L;
 
-	private Set<String> languages;
+	private Indexer<String> langIndexer;
 
 	/**
 	 * Map[destinationLanguage -> destinationLM]
 	 */
-	private Map<String, SingleLanguageModel> subModels;
+	private List<SingleLanguageModel> subModels;
 
 	/**
 	 * Map[destinationLanguage -> "prior prob of seeing destinationLanguage"]
 	 */
-	private Map<String, Double> languagePriors;
+	private List<Double> languagePriors;
 
 	/**
 	 * Map[destinationLanguage -> Map[fromLanguage, "prior prob of switching from "from" to "destination"]]
 	 */
-	private Map<String, Map<String, Double>> languageTransitionPriors;
+	private List<List<Double>> languageTransitionProbs;
 
 	private Indexer<String> charIndexer;
 	private int maxOrder;
 	private double pKeepSameLanguage;
 
-	public Set<String> languages() {
-		return languages;
+	public Indexer<String> getLanguageIndexer() {
+		return langIndexer;
 	}
 
-	public SingleLanguageModel get(String language) {
-		return subModels.get(language);
+	public SingleLanguageModel get(int language) {
+		if (language == -1)
+			return null;
+		else
+			return subModels.get(language);
 	}
 
-	public Double languagePrior(String language) {
+	public double languagePrior(int language) {
 		return languagePriors.get(language);
 	}
 
-	public Double languageTransitionPrior(String fromLanguage, String destinationLanguage) {
-		return languageTransitionPriors.get(destinationLanguage).get(fromLanguage);
+	public double languageTransitionProb(int fromLanguage, int destinationLanguage) {
+		return languageTransitionProbs.get(destinationLanguage).get(fromLanguage);
 	}
 
 	public Indexer<String> getCharacterIndexer() {
@@ -67,32 +67,30 @@ public class BasicCodeSwitchLanguageModel implements CodeSwitchLanguageModel {
 		return pKeepSameLanguage;
 	}
 
-	public BasicCodeSwitchLanguageModel(Map<String, Tuple2<SingleLanguageModel, Double>> subModelsAndPriors, Indexer<String> charIndexer, double pKeepSameLanguage, int maxOrder) {
+	public BasicCodeSwitchLanguageModel(List<Tuple2<SingleLanguageModel, Double>> subModelsAndPriors, Indexer<String> charIndexer, Indexer<String> langIndexer, double pKeepSameLanguage, int maxOrder) {
 		if (subModelsAndPriors.isEmpty()) throw new IllegalArgumentException("languageModelsAndPriors may not be empty");
 		if (pKeepSameLanguage <= 0.0 || pKeepSameLanguage > 1.0) throw new IllegalArgumentException("pKeepSameLanguage must be between 0 and 1, was " + pKeepSameLanguage);
 
 		// Total prob, for normalizing
 		double languagePriorSum = 0.0;
-		for (Map.Entry<String, Tuple2<SingleLanguageModel, Double>> lmAndPrior : subModelsAndPriors.entrySet()) {
-			double prior = lmAndPrior.getValue()._2;
-			if (prior <= 0.0) throw new IllegalArgumentException("prior on " + lmAndPrior.getKey() + " is not positive (it's " + prior + ")");
+		for (int langIndex = 0; langIndex < langIndexer.size(); ++langIndex) {
+			Tuple2<SingleLanguageModel, Double> lmAndPrior = subModelsAndPriors.get(langIndex);
+			double prior = lmAndPrior._2;
+			if (prior <= 0.0) throw new IllegalArgumentException("prior on " + langIndexer.getObject(langIndex) + " is not positive (it's " + prior + ")");
 			languagePriorSum += prior;
 		}
 
-		this.languages = new HashSet<String>();
-		this.languages.addAll(subModelsAndPriors.keySet());
-		
-		this.subModels = new HashMap<String, SingleLanguageModel>();
-		this.languagePriors = new HashMap<String, Double>();
-		for (Map.Entry<String, Tuple2<SingleLanguageModel, Double>> lmAndPrior : subModelsAndPriors.entrySet()) {
-			String language = lmAndPrior.getKey();
-			this.subModels.put(language, lmAndPrior.getValue()._1);
-			this.languagePriors.put(language, lmAndPrior.getValue()._2 / languagePriorSum);
+		this.subModels = new ArrayList<SingleLanguageModel>();
+		this.languagePriors = new ArrayList<Double>();
+		for (Tuple2<SingleLanguageModel, Double> lmAndPrior : subModelsAndPriors) {
+			this.subModels.add(lmAndPrior._1);
+			this.languagePriors.add(lmAndPrior._2 / languagePriorSum);
 		}
 
-		this.languageTransitionPriors = makeLanguageTransitionPriors(languagePriors, pKeepSameLanguage);
+		this.languageTransitionProbs = makeLanguageTransitionProbs(this.languagePriors, pKeepSameLanguage, langIndexer);
 
 		this.charIndexer = charIndexer;
+		this.langIndexer = langIndexer;
 		this.maxOrder = maxOrder;
 		this.pKeepSameLanguage = pKeepSameLanguage;
 	}
@@ -102,43 +100,43 @@ public class BasicCodeSwitchLanguageModel implements CodeSwitchLanguageModel {
 	 * @param pKeepSameLanguage	The prior probability of deterministically keeping the same language on a word boundary.
 	 * @return Map[destinationLanguage -> Map[fromLanguage, "prob of switching from "from" to "to"]]
 	 */
-	public static Map<String, Map<String, Double>> makeLanguageTransitionPriors(Map<String, Double> languagePriors, double pKeepSameLanguage) {
+	public static List<List<Double>> makeLanguageTransitionProbs(List<Double> languagePriors, double pKeepSameLanguage, Indexer<String> langIndexer) {
 		if (languagePriors.isEmpty()) throw new IllegalArgumentException("languagePriors may not be empty");
 		if (pKeepSameLanguage <= 0.0 || pKeepSameLanguage > 1.0) throw new IllegalArgumentException("pKeepSameLanguage must be between 0 and 1, was " + pKeepSameLanguage);
 
-		Set<String> languages = languagePriors.keySet();
-		if (languages.size() > 1) {
-			double pSwitchLanguages = (1.0 - pKeepSameLanguage) / (languages.size() - 1);
+		int numLanguages = langIndexer.size();
+		if (numLanguages > 1) {
+			double pSwitchLanguages = (1.0 - pKeepSameLanguage) / (numLanguages - 1);
 
 			// Map[destinationLanguage -> Map[fromLanguage, "prob of switching from "from" to "to"]]
-			Map<String, Map<String, Double>> result = new HashMap<String, Map<String, Double>>();
-			for (String destLanguage : languages) {
+			List<List<Double>> result = new ArrayList<List<Double>>();
+			for (int destLanguage = 0; destLanguage < numLanguages; ++destLanguage) {
 				double destPrior = languagePriors.get(destLanguage);
-				if (destPrior <= 0.0) throw new IllegalArgumentException("prior on " + destLanguage + " is not positive (it's " + destPrior + ")");
+				if (destPrior <= 0.0) throw new IllegalArgumentException("prior on " + langIndexer.getObject(destLanguage) + " is not positive (it's " + destPrior + ")");
 
-				Map<String, Double> transitionPriors = new HashMap<String, Double>();
-				for (String fromLanguage : languages) {
+				List<Double> transitionPriors = new ArrayList<Double>();
+				for (int fromLanguage = 0; fromLanguage < numLanguages; ++fromLanguage) {
 					double transitionProb;
-					if (fromLanguage.equals(destLanguage))  // keeping the same language across the transition
+					if (fromLanguage == destLanguage)  // keeping the same language across the transition
 						transitionProb = pKeepSameLanguage;
 					else
 						transitionProb = pSwitchLanguages;
 					// prior probability of keeping/switching with the same language and (normalized) prior of switching to destination language
-					transitionPriors.put(fromLanguage, transitionProb * destPrior);
+					transitionPriors.add(transitionProb * destPrior);
 				}
-				result.put(destLanguage, transitionPriors);
+				result.add(transitionPriors);
 			}
 
 			// Adjust the results map by normalizing the probabilities
-			for (String fromLanguage : languages) {
+			for (int fromLanguage = 0; fromLanguage < numLanguages; ++fromLanguage) {
 				double transitionPriorSum = 0.0;
-				for (String destLanguage : languages) { // Get the total probability for normalization
-					transitionPriorSum += result.get(destLanguage).get(fromLanguage);
+				for (List<Double> transitionPriors : result) { // Get the total probability for normalization
+					transitionPriorSum += transitionPriors.get(fromLanguage);
 				}
 
-				for (String destLanguage : languages) { // Normalize all the probabilities so that they sum to 1.0
-					double transitionProb = result.get(destLanguage).get(fromLanguage);
-					result.get(destLanguage).put(fromLanguage, transitionProb / transitionPriorSum); // normalize the probability and put it back
+				for (List<Double> transitionPriors : result) { // Normalize all the probabilities so that they sum to 1.0
+					double transitionProb = transitionPriors.get(fromLanguage);
+					transitionPriors.set(fromLanguage, transitionProb / transitionPriorSum); // normalize the probability and put it back
 				}
 			}
 
@@ -146,8 +144,7 @@ public class BasicCodeSwitchLanguageModel implements CodeSwitchLanguageModel {
 		}
 		else {
 			// Only one language means no switching ever, so probability of keeping the same language is 1.0
-			String language = languages.iterator().next();
-			return map1(language, map1(language, 1.0));
+			return Collections.singletonList(Collections.singletonList(1.0));
 		}
 	}
 
@@ -157,14 +154,14 @@ public class BasicCodeSwitchLanguageModel implements CodeSwitchLanguageModel {
 	 *         a) the role of spaces in determining language switches (it 
 	 *            kind of assumes that every character can be a different 
 	 *            language)
-	 *         b) languageTransitionPriors (since we can't track the language
+	 *         b) languageTransitionProb (since we can't track the language
 	 *            of the context)
 	 */
 	public double getCharNgramProb(int[] context, int c) {
 		//			if(context[context.length-1] == charIndexer.getIndex(Main.SPACE)) { // this is right after a space  
 		// assume any language is possible
 		double probSum = 0.0;
-		for (String language : languages) {
+		for (int language = 0; language < this.langIndexer.size(); ++language) {
 			probSum += subModels.get(language).getCharNgramProb(context, c) * languagePriors.get(language);
 		}
 		return probSum;

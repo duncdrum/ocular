@@ -14,13 +14,12 @@ import edu.berkeley.cs.nlp.ocular.gsm.BasicGlyphSubstitutionModel.BasicGlyphSubs
 import edu.berkeley.cs.nlp.ocular.gsm.GlyphSubstitutionModel;
 import edu.berkeley.cs.nlp.ocular.lm.CodeSwitchLanguageModel;
 import fig.Option;
-import fig.OptionsParser;
 import indexer.Indexer;
 
 /**
  * @author Dan Garrette (dhgarrette@gmail.com)
  */
-public class InitializeGlyphSubstitutionModel implements Runnable {
+public class InitializeGlyphSubstitutionModel extends OcularRunnable {
 	
 	@Option(gloss = "Path to the language model file (so that it knows which characters to create images for).")
 	public static String inputLmPath = null; // Required.
@@ -38,17 +37,17 @@ public class InitializeGlyphSubstitutionModel implements Runnable {
 	public static double gsmPower = 4.0;
 
 	public static void main(String[] args) {
+		System.out.println("InitializeGlyphSubstitutionModel");
 		InitializeGlyphSubstitutionModel main = new InitializeGlyphSubstitutionModel();
-		OptionsParser parser = new OptionsParser();
-		parser.doRegisterAll(new Object[] {main});
-		if (!parser.doParse(args)) System.exit(1);
-		main.run();
+		main.doMain(main, args);
+	}
+
+	protected void validateOptions() {
+		if (inputLmPath == null) throw new IllegalArgumentException("-lmPath not set");
+		if (outputGsmPath == null) throw new IllegalArgumentException("-fontPath not set");
 	}
 
 	public void run() {
-		if (inputLmPath == null) throw new IllegalArgumentException("-lmPath not set");
-		if (outputGsmPath == null) throw new IllegalArgumentException("-fontPath not set");
-
 		final CodeSwitchLanguageModel lm = InitializeLanguageModel.readCodeSwitchLM(inputLmPath);
 		final Indexer<String> charIndexer = lm.getCharacterIndexer();
 		final Indexer<String> langIndexer = lm.getLanguageIndexer();
@@ -63,8 +62,10 @@ public class InitializeGlyphSubstitutionModel implements Runnable {
 				langIndexer, charIndexer, 
 				activeCharacterSets, gsmPower, minCountsForEvalGsm, outputPath);
 		
+		System.out.println("Initializing a uniform GSM.");
 		GlyphSubstitutionModel gsm = factory.uniform();
 		
+		System.out.println("Writing intialized gsm to " + outputGsmPath);
 		writeGSM(gsm, outputGsmPath);
 	}
 	

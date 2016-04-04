@@ -66,9 +66,9 @@ Continued development of Ocular is supported in part by a [Digital Humanities Im
 
 The easiest way to get the Ocular software is to download the self-contained jar from http://www.cs.utexas.edu/~dhg/maven-repository/snapshots/edu/berkeley/cs/nlp/ocular/0.3-SNAPSHOT/ocular-0.3-SNAPSHOT-with_dependencies.jar
 
-Once you have this jar, you will be able to run Ocular according to the instructions below in the [Using Ocular](https://github.com/tberg12/ocular#using-ocular) section; the code in this repository is not a requirement if all you'd like to do is run the software.
+Once you have this jar, you will be able to run Ocular according to the instructions below in the [Using Ocular](#using-ocular) section; the code in this repository is not a requirement if all you'd like to do is run the software.
 
-The jar is executable, so when you use go to use Ocular, you will run it following this template (where [MAIN-CLASS] will specify which program to run, as detailed in the [Using Ocular](https://github.com/tberg12/ocular#using-ocular) section below):
+The jar is executable, so when you use go to use Ocular, you will run it following this template (where [MAIN-CLASS] will specify which program to run, as detailed in the [Using Ocular](#using-ocular) section below):
 
     java -Done-jar.main.class=[MAIN-CLASS] -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar [options...]
 
@@ -83,7 +83,7 @@ Clone this repository, and compile the project into a jar:
     cd ocular
     ./make_jar.sh
 
-This creates precisely the same `ocular-0.3-SNAPSHOT-with_dependencies.jar` jar file discussed above.  Thus, this is sufficient to be able to run Ocular, as stated above, using the detailed instructions in the [Using Ocular](https://github.com/tberg12/ocular#using-ocular) section below.
+This creates precisely the same `ocular-0.3-SNAPSHOT-with_dependencies.jar` jar file discussed above.  Thus, this is sufficient to be able to run Ocular, as stated above, using the detailed instructions in the [Using Ocular](#using-ocular) section below.
 
 Also like above, since this jar includes all the necessary dependencies, so you should be able to move it wherever you like, without the rest of the contents of this repository.
 
@@ -110,7 +110,7 @@ Alternatively, if you do not wish to create the entire jar, you can run `make_ru
 
 1. Initialize a language model:
 
-  Acquire some files with text written in the language(s) of your documents. For example, download a book in [English](http://www.gutenberg.org/cache/epub/2600/pg2600.txt). The path specified by `-inputTextPath` should point to a text file or directory or directory hierarchy of text files; the path will be searched recursively for files.  Use `-lmPath` to specify where the trained LM should be written.
+  Acquire some files with text written in the language(s) of your documents. For example, download a book in [English](http://www.gutenberg.org/cache/epub/2600/pg2600.txt). The path specified by `-inputTextPath` should point to a text file or directory or directory hierarchy of text files; the path will be searched recursively for files.  Use `-outputLmPath` to specify where the trained LM should be written.
 
       java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.InitializeLanguageModel -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar \
         -inputTextPath texts/pg2600.txt \
@@ -129,7 +129,7 @@ Alternatively, if you do not wish to create the entire jar, you can run `make_ru
 
 2. Initialize a font:
 
-  Before a font can be trained from texts, a font model consisting of a "guess" for each character must be initialized based on the fonts on your computer.  Use `-outputFontPath` to specify where the initialized font should be written.  Since different languages use different character sets, a language model must be given in order for the system to know what characters to initialize (`-lmPath`).
+  Before a font can be trained from texts, a font model consisting of a "guess" for each character must be initialized based on the fonts on your computer.  Use `-outputFontPath` to specify where the initialized font should be written.  Since different languages use different character sets, a language model must be given in order for the system to know what characters to initialize (`-inputLmPath`).
 
       java -Done-jar.main.class=edu.berkeley.cs.nlp.ocular.main.InitializeFont -mx7g -jar ocular-0.3-SNAPSHOT-with_dependencies.jar \
         -inputLmPath lm/trilingual.lmser \

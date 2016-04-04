@@ -4,20 +4,21 @@ import java.util.List;
 
 import edu.berkeley.cs.nlp.ocular.data.Document;
 import edu.berkeley.cs.nlp.ocular.data.LazyRawImageLoader;
-import fig.OptionsParser;
 
 /**
  * @author Dan Garrette (dhgarrette@gmail.com)
  */
-public class ExtractLinesOnly extends FonttrainTranscribeShared implements Runnable {
+public class ExtractLinesOnly extends LineExtractionOptions {
 
 	public static void main(String[] args) {
+		System.out.println("ExtractLinesOnly");
 		ExtractLinesOnly main = new ExtractLinesOnly();
-		OptionsParser parser = new OptionsParser();
-		parser.doRegisterAll(new Object[] { main });
-		if (!parser.doParse(args)) System.exit(1);
-		validateOptions();
-		main.run();
+		main.doMain(main, args);
+	}
+		
+	protected void validateOptions() {
+		super.validateOptions();
+		if (extractedLinesPath == null) throw new IllegalArgumentException("-extractedLinesPath is required.");
 	}
 
 	public void run() {
@@ -29,10 +30,4 @@ public class ExtractLinesOnly extends FonttrainTranscribeShared implements Runna
 		}
 	}
 	
-	protected static void validateOptions() {
-		FonttrainTranscribeShared.validateOptions();
-		
-		if (extractedLinesPath == null) throw new IllegalArgumentException("-extractedLinesPath is required.");
-	}
-
 }

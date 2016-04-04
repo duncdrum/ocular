@@ -35,7 +35,6 @@ import edu.berkeley.cs.nlp.ocular.lm.SingleLanguageModel;
 import edu.berkeley.cs.nlp.ocular.util.FileUtil;
 import edu.berkeley.cs.nlp.ocular.util.Tuple2;
 import fig.Option;
-import fig.OptionsParser;
 import fileio.f;
 import indexer.HashMapIndexer;
 import indexer.Indexer;
@@ -44,7 +43,7 @@ import indexer.Indexer;
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
  * @author Dan Garrette (dhgarrette@gmail.com)
  */
-public class InitializeLanguageModel implements Runnable {
+public class InitializeLanguageModel extends OcularRunnable {
 	
 	@Option(gloss = "Output LM file path.")
 	public static String outputLmPath = null; // Required.
@@ -81,17 +80,17 @@ public class InitializeLanguageModel implements Runnable {
 
 	
 	public static void main(String[] args) {
+		System.out.println("InitializeLanguageModel");
 		InitializeLanguageModel main = new InitializeLanguageModel();
-		OptionsParser parser = new OptionsParser();
-		parser.doRegisterAll(new Object[] { main });
-		if (!parser.doParse(args)) System.exit(1);
-		main.run();
+		main.doMain(main, args);
+	}
+
+	protected void validateOptions() {
+		if (outputLmPath == null) throw new IllegalArgumentException("-lmPath not set");
+		if (inputTextPath == null) throw new IllegalArgumentException("-inputTextPath not set");
 	}
 
 	public void run() {
-		if (outputLmPath == null) throw new IllegalArgumentException("-lmPath not set");
-		if (inputTextPath == null) throw new IllegalArgumentException("-inputTextPath not set");
-		
 		Tuple2<Indexer<String>, List<Tuple2<Tuple2<String, TextReader>, Double>>> langIndexerAndLmData = makePathsReadersAndPriors();
 		Indexer<String> langIndexer = langIndexerAndLmData._1;
 		List<Tuple2<Tuple2<String, TextReader>, Double>> pathsReadersAndPriors = langIndexerAndLmData._2;

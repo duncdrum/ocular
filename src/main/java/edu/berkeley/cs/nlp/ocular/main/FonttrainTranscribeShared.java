@@ -143,8 +143,8 @@ public abstract class FonttrainTranscribeShared extends LineExtractionOptions {
 
 	//
 	
-	protected static void validateOptions() {
-		LineExtractionOptions.validateOptions();
+	protected void validateOptions() {
+		super.validateOptions();
 
 		if (outputPath == null) throw new IllegalArgumentException("-outputPath not set");
 		
@@ -274,5 +274,5 @@ public abstract class FonttrainTranscribeShared extends LineExtractionOptions {
 			return new MultiDocumentTranscriber.NoOpMultiDocumentTranscriber();
 		}
 	}
-
+	
 }

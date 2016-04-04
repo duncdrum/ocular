@@ -8,22 +8,21 @@ import edu.berkeley.cs.nlp.ocular.eval.BasicSingleDocumentEvaluatorAndOutputPrin
 import edu.berkeley.cs.nlp.ocular.eval.MultiDocumentTranscriber;
 import edu.berkeley.cs.nlp.ocular.eval.SingleDocumentEvaluatorAndOutputPrinter;
 import edu.berkeley.cs.nlp.ocular.font.Font;
-import edu.berkeley.cs.nlp.ocular.gsm.GlyphSubstitutionModel;
 import edu.berkeley.cs.nlp.ocular.gsm.BasicGlyphSubstitutionModel.BasicGlyphSubstitutionModelFactory;
+import edu.berkeley.cs.nlp.ocular.gsm.GlyphSubstitutionModel;
 import edu.berkeley.cs.nlp.ocular.lm.CodeSwitchLanguageModel;
 import edu.berkeley.cs.nlp.ocular.model.DecoderEM;
 import edu.berkeley.cs.nlp.ocular.train.FontTrainer;
 import edu.berkeley.cs.nlp.ocular.train.TrainingRestarter;
 import edu.berkeley.cs.nlp.ocular.util.FileUtil;
 import fig.Option;
-import fig.OptionsParser;
 import indexer.Indexer;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
  * @author Dan Garrette (dhgarrette@gmail.com)
  */
-public class TrainFont extends FonttrainTranscribeShared implements Runnable {
+public class TrainFont extends FonttrainTranscribeShared {
 
 	@Option(gloss = "Number of iterations of EM to use for font learning.")
 	public static int numEMIters = 3;
@@ -36,16 +35,13 @@ public class TrainFont extends FonttrainTranscribeShared implements Runnable {
 	
 
 	public static void main(String[] args) {
+		System.out.println("TrainFont");
 		TrainFont main = new TrainFont();
-		OptionsParser parser = new OptionsParser();
-		parser.doRegisterAll(new Object[] { main });
-		if (!parser.doParse(args)) System.exit(1);
-		validateOptions();
-		main.run();
+		main.doMain(main, args);
 	}
 
-	protected static void validateOptions() {
-		FonttrainTranscribeShared.validateOptions();
+	protected void validateOptions() {
+		super.validateOptions();
 		
 		if (numEMIters <= 0) new IllegalArgumentException("-numEMIters must be a positive number.");
 
@@ -85,8 +81,6 @@ public class TrainFont extends FonttrainTranscribeShared implements Runnable {
 				numMstepThreads,
 				newInputDocPath, outputPath,
 				evalSetEvaluator, evalFreq, evalBatches);
-
-		System.out.println("Completed.");
 	}
 
 }

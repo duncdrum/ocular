@@ -1,21 +1,22 @@
 package edu.berkeley.cs.nlp.ocular.model;
 
-import indexer.Indexer;
-import indexer.IntArrayIndexer;
+import tberg.murphy.indexer.Indexer;
+import tberg.murphy.indexer.IntArrayIndexer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import math.m;
-import opt.DifferentiableFunction;
-import opt.LBFGSMinimizer;
-import opt.Minimizer;
-import tuple.Pair;
-import arrays.a;
+import tberg.murphy.math.m;
+import tberg.murphy.opt.DifferentiableFunction;
+import tberg.murphy.opt.LBFGSMinimizer;
+import tberg.murphy.opt.Minimizer;
+import tberg.murphy.tuple.Pair;
+import tberg.murphy.arrays.a;
 import edu.berkeley.cs.nlp.ocular.data.textreader.Charset;
 import edu.berkeley.cs.nlp.ocular.image.ImageUtils.PixelType;
+import edu.berkeley.cs.nlp.ocular.util.StringHelper;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
@@ -294,7 +295,7 @@ public class CharacterTemplate implements Serializable {
 		}
 		float[][] blackProbs = blackProbs(EXP_GAINS.length/2, 0, bestWidth);
 		StringBuffer buf = new StringBuffer();
-		buf.append(character).append(":\n");
+		buf.append(character).append("  ").append(StringHelper.toUnicode(character)).append(":\n");
 		for (int j=0; j<LINE_HEIGHT; ++j) {
 			for (int i=0; i<bestWidth; ++i) {
 				float prob = blackProbs[i][j];
@@ -313,7 +314,7 @@ public class CharacterTemplate implements Serializable {
 	}
 
 	private String renderWidthProbs(float[] probs, int firstIndex) {
-		assert probs.length > 0;
+		if (probs.length <= 0) throw new RuntimeException("probs.length <= 0. was probs.length=" + probs.length);
 		StringBuffer buf = new StringBuffer();
 		for (int i=0; i<probs.length; ++i) {
 			buf.append(i+firstIndex).append(" = ").append(String.format("%.2f", probs[i])).append(", ");

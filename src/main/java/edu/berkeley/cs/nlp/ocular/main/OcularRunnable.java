@@ -1,14 +1,16 @@
 package edu.berkeley.cs.nlp.ocular.main;
 
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
-import fig.OptionsParser;
+import tberg.murphy.fig.OptionsParser;
 
 /**
  * @author Dan Garrette (dhgarrette@gmail.com)
  */
-abstract class OcularRunnable implements Runnable {
+public abstract class OcularRunnable {
 
 	private SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
 	
@@ -20,23 +22,22 @@ abstract class OcularRunnable implements Runnable {
 		parser.doRegisterAll(new Object[] { main });
 		if (!parser.doParse(args)) System.exit(1);
 		main.validateOptions();
-		main.run();
+		main.run(Arrays.asList(args));
 		long endTime = System.currentTimeMillis();
 		printEndTime(startTime, endTime);
 	}
+	
+	abstract protected void run(List<String> commandLineArgs);
 
 	abstract protected void validateOptions();
 
 	private static String toArgListString(String[] args) {
 		StringBuffer sb = new StringBuffer();
 		for (int i = 0; i < args.length; ++i) {
-		  if (i % 2 == 0) 
-			  sb.append("  " + args[i]);
-		  else 
-			  sb.append(" " + args[i] + "\n");
+			sb.append("  " + args[i]);
+			if (i % 2 != 0)
+				sb.append("\n");
 		}
-		if (sb.codePointAt(sb.length()-1) != '\n')
-			sb.append("\n");
 		return sb.toString();
 	}
 	

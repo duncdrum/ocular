@@ -2,8 +2,8 @@ package edu.berkeley.cs.nlp.ocular.data.textreader;
 
 import java.util.Collection;
 
-import indexer.HashMapIndexer;
-import indexer.Indexer;
+import tberg.murphy.indexer.HashMapIndexer;
+import tberg.murphy.indexer.Indexer;
 
 /**
  * @author Dan Garrette (dhgarrette@gmail.com)
@@ -18,11 +18,11 @@ public class CharIndexer implements Indexer<String> {
 	}
 
 	public boolean contains(String object) {
-		return delegate.contains(Charset.escapeChar(object)); 
+		return delegate.contains(Charset.normalizeChar(object)); 
 	}
 	
 	public int getIndex(String object) { 
-		return delegate.getIndex(Charset.escapeChar(object)); 
+		return delegate.getIndex(Charset.normalizeChar(object)); 
 	}
 	
 	public void index(String[] vect) { 

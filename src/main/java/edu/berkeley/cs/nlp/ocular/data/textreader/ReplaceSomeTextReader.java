@@ -8,7 +8,7 @@ import java.util.List;
 import edu.berkeley.cs.nlp.ocular.util.CollectionHelper;
 import edu.berkeley.cs.nlp.ocular.util.Tuple2;
 import static edu.berkeley.cs.nlp.ocular.util.Tuple2.Tuple2;
-import fileio.f;
+import tberg.murphy.fileio.f;
 
 /**
  * @author Dan Garrette (dhgarrette@gmail.com)
@@ -72,7 +72,7 @@ public class ReplaceSomeTextReader implements TextReader {
 			if (!line.trim().isEmpty()) {
 				String[] parts = line.split("\t");
 				if (parts.length != 3) throw new RuntimeException("line does not contain 3 parts.  found: " + Arrays.asList(parts));
-				result.add(Tuple2(Tuple2(Charset.readCharacters(parts[0]), Charset.readCharacters(parts[1])), Integer.valueOf(parts[2])));
+				result.add(Tuple2(Tuple2(Charset.readNormalizeCharacters(parts[0]), Charset.readNormalizeCharacters(parts[1])), Integer.valueOf(parts[2])));
 			}
 		}
 		return result;

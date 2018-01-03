@@ -8,6 +8,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
@@ -19,10 +20,10 @@ import edu.berkeley.cs.nlp.ocular.image.FontRenderer;
 import edu.berkeley.cs.nlp.ocular.image.ImageUtils.PixelType;
 import edu.berkeley.cs.nlp.ocular.lm.LanguageModel;
 import edu.berkeley.cs.nlp.ocular.model.CharacterTemplate;
-import fig.Option;
-import fileio.f;
-import indexer.Indexer;
-import threading.BetterThreader;
+import tberg.murphy.fig.Option;
+import tberg.murphy.fileio.f;
+import tberg.murphy.indexer.Indexer;
+import tberg.murphy.threading.BetterThreader;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
@@ -54,18 +55,18 @@ public class InitializeFont extends OcularRunnable {
 	public static double spaceMinWidthFraction = 0.0;
 	
 	
-	public void main(String[] args) {
+	public static void main(String[] args) {
 		System.out.println("InitializeFont");
 		InitializeFont main = new InitializeFont();
 		main.doMain(main, args);
 	}
 	
 	protected void validateOptions() {
-		if (inputLmPath == null) throw new IllegalArgumentException("-lmPath not set");
-		if (outputFontPath == null) throw new IllegalArgumentException("-fontPath not set");
+		if (inputLmPath == null) throw new IllegalArgumentException("-inputLmPath not set");
+		if (outputFontPath == null) throw new IllegalArgumentException("-outputFontPath not set");
 	}
 
-	public void run() {
+	public void run(List<String> commandLineArgs) {
 		Set<String> allowedFonts = getAllowedFontsListFromFile();
 		
 		final LanguageModel lm = InitializeLanguageModel.readLM(inputLmPath);
@@ -124,6 +125,7 @@ public class InitializeFont extends OcularRunnable {
 //		return fAndBarFontPixelData.toArray(new PixelType[0][][]);
 //	}
 	
+	@SuppressWarnings("unchecked")
 	public static Font readFont(String fontPath) {
 		ObjectInputStream in = null;
 		try {
@@ -151,7 +153,7 @@ public class InitializeFont extends OcularRunnable {
 	public static void writeFont(Font font, String fontPath) {
 		ObjectOutputStream out = null;
 		try {
-			new File(fontPath).getParentFile().mkdirs();
+			new File(fontPath).getAbsoluteFile().getParentFile().mkdirs();
 			out = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(fontPath)));
 			out.writeObject(font);
 		} catch (Exception e) {

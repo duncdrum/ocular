@@ -1,10 +1,12 @@
 package edu.berkeley.cs.nlp.ocular.main;
 
+import static edu.berkeley.cs.nlp.ocular.main.FonttrainTranscribeShared.OutputFormat.*;
 import static edu.berkeley.cs.nlp.ocular.util.CollectionHelper.makeList;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -22,17 +24,26 @@ import edu.berkeley.cs.nlp.ocular.model.DecoderEM;
 import edu.berkeley.cs.nlp.ocular.model.em.CUDAInnerLoop;
 import edu.berkeley.cs.nlp.ocular.model.em.DefaultInnerLoop;
 import edu.berkeley.cs.nlp.ocular.model.em.EmissionCacheInnerLoop;
-import edu.berkeley.cs.nlp.ocular.model.em.OpenCLInnerLoop;
+import edu.berkeley.cs.nlp.ocular.model.em.JOCLInnerLoop;
 import edu.berkeley.cs.nlp.ocular.model.emission.CachingEmissionModel.CachingEmissionModelFactory;
 import edu.berkeley.cs.nlp.ocular.model.emission.CachingEmissionModelExplicitOffset.CachingEmissionModelExplicitOffsetFactory;
 import edu.berkeley.cs.nlp.ocular.model.emission.EmissionModel.EmissionModelFactory;
-import fig.Option;
-import indexer.Indexer;
+import edu.berkeley.cs.nlp.ocular.util.StringHelper;
+import tberg.murphy.fig.Option;
+import tberg.murphy.indexer.Indexer;
 
+/**
+ * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
+ * @author Dan Garrette (dhgarrette@gmail.com)
+ */
 public abstract class FonttrainTranscribeShared extends LineExtractionOptions {
 
 	@Option(gloss = "Path of the directory that will contain output transcriptions.")
 	public static String outputPath = null; // Required.
+
+	public static enum OutputFormat { DIPL, NORM, NORMLINES, COMP, HTML, ALTO, WHITESPACE };
+	@Option(gloss = "Output formats to be generated. Choose from one or multiple of {dipl,norm,normlines,comp,html,alto}, comma-separated.  dipl = diplomatic, norm = normalized (lines joined), normlines = normalized (separate lines), comp = comparisons.  Default: dipl,norm if -allowGlyphSubstitution=true; dipl otherwise.")
+	public static String outputFormats = "";
 
 	@Option(gloss = "Path to the input language model file.")
 	public static String inputLmPath = null; // Required.
@@ -88,7 +99,11 @@ public abstract class FonttrainTranscribeShared extends LineExtractionOptions {
 	public static double gsmElisionSmoothingCountMultiplier = 100.0;
 
 	// ##### Miscellaneous Options
+
+	@Option(gloss = "Should documents that cause errors be skipped instead of stopping the whole program?")
+	public static boolean skipFailedDocs = false;
 	
+	public static enum EmissionCacheInnerLoopType { DEFAULT, OPENCL, CUDA };
 	@Option(gloss = "Engine to use for inner loop of emission cache computation. `DEFAULT`: Uses Java on CPU, which works on any machine but is the slowest method. `OPENCL`: Faster engine that uses either the CPU or integrated GPU (depending on processor) and requires OpenCL installation. `CUDA`: Fastest method, but requires a discrete NVIDIA GPU and CUDA installation.")
 	public static EmissionCacheInnerLoopType emissionEngine = EmissionCacheInnerLoopType.DEFAULT; // Default: DEFAULT
 
@@ -138,15 +153,44 @@ public abstract class FonttrainTranscribeShared extends LineExtractionOptions {
 	@Option(gloss = "When using -evalInputDocPath, on iterations in which we run the evaluation, should the evaluation be run after each batch, as determined by -updateDocBatchSize (in addition to after each iteration)?")
 	public static boolean evalBatches = false;
 	
-	
-	public static enum EmissionCacheInnerLoopType { DEFAULT, OPENCL, CUDA };
-
 	//
+	
+	protected static Set<OutputFormat> parseOutputFormats() {
+		Set<OutputFormat> formats = new HashSet<OutputFormat>();
+		List<String> invalidFormats = new ArrayList<String>();
+		for (String fs: outputFormats.replaceAll("\\s+", "").split(",")) {
+			if (!fs.isEmpty()) {
+				String fsu = fs.toUpperCase();
+				OutputFormat of = null;
+				try {
+					of = OutputFormat.valueOf(fsu);
+				}
+				catch (IllegalArgumentException e) {
+					invalidFormats.add(fs);
+				}
+				if (of != null) {
+					if ((of == NORM || of == NORMLINES) && !allowGlyphSubstitution)
+						throw new IllegalArgumentException("-outputFormats 'norm' and 'normlines' are not valid if -allowGlyphSubstitution is false");
+					formats.add(of);
+				}
+			}
+		}
+		if (!invalidFormats.isEmpty()) {
+			throw new IllegalArgumentException("Invalid output formats: {"+StringHelper.join(invalidFormats, ", ")+"}");
+		}
+		if (formats.isEmpty()) {
+			formats.add(DIPL);
+			if (allowGlyphSubstitution)
+				formats.add(NORM);
+		}
+		return formats;
+	}
 	
 	protected void validateOptions() {
 		super.validateOptions();
 
 		if (outputPath == null) throw new IllegalArgumentException("-outputPath not set");
+		parseOutputFormats();
 		
 		if (inputFontPath == null) throw new IllegalArgumentException("-inputFontPath is required");
 		if (!new File(inputFontPath).exists()) throw new RuntimeException("inputFontPath " + inputFontPath + " does not exist [looking in "+(new File(".").getAbsolutePath())+"]");
@@ -169,12 +213,11 @@ public abstract class FonttrainTranscribeShared extends LineExtractionOptions {
 		if (evalExtractedLinesPath != null && evalInputDocPath == null) throw new IllegalArgumentException("-evalExtractedLinesPath not permitted without -evalInputDocPath.");
 
 		// Make the output directory if it doesn't exist yet
-		File outputPathFile = new File(outputPath);
-		if (!outputPathFile.exists()) outputPathFile.mkdirs();
+		new File(outputPath).mkdirs();
 		
 		//
 		
-		if (!(updateLM == (outputLmPath != null))) throw new IllegalArgumentException("-retrainLM is not as expected");
+		if (!(updateLM == (outputLmPath != null))) throw new IllegalArgumentException("-updateLM is not as expected");
 		if (!(updateGsm == (outputGsmPath != null))) throw new IllegalArgumentException("-updateGsm is not as expected");
 		if (!(allowGlyphSubstitution == (inputGsmPath != null || outputGsmPath != null))) throw new IllegalArgumentException("-allowGlyphSubstitution is not as expected");
 	}
@@ -254,7 +297,7 @@ public abstract class FonttrainTranscribeShared extends LineExtractionOptions {
 	protected static EmissionCacheInnerLoop getEmissionInnerLoop() {
 		switch (emissionEngine) {
 			case DEFAULT: return new DefaultInnerLoop(numEmissionCacheThreads);
-			case OPENCL: return new OpenCLInnerLoop(numEmissionCacheThreads);
+			case OPENCL: return new JOCLInnerLoop(numEmissionCacheThreads);
 			case CUDA: return new CUDAInnerLoop(numEmissionCacheThreads, cudaDeviceID);
 		}
 		throw new RuntimeException("emissionEngine=" + emissionEngine + " not supported");
@@ -268,7 +311,7 @@ public abstract class FonttrainTranscribeShared extends LineExtractionOptions {
 				if (doc.loadDiplomaticTextLines() == null & doc.loadNormalizedText() == null) 
 					throw new RuntimeException("Evaluation document "+doc.baseName()+" has no gold transcriptions.");
 			}
-			return new BasicMultiDocumentTranscriber(evalDocuments, evalInputDocPath, outputPath, decoderEM, documentOutputPrinterAndEvaluator, charIndexer);
+			return new BasicMultiDocumentTranscriber(evalDocuments, evalInputDocPath, outputPath, parseOutputFormats(), decoderEM, documentOutputPrinterAndEvaluator, charIndexer, skipFailedDocs);
 		}
 		else {
 			return new MultiDocumentTranscriber.NoOpMultiDocumentTranscriber();

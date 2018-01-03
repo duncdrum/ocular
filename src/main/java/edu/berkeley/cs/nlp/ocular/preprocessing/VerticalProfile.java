@@ -10,8 +10,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-import math.SloppyMath;
-import tuple.Pair;
+import tberg.murphy.math.m;
+import tberg.murphy.tuple.Pair;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
@@ -72,6 +72,20 @@ public class VerticalProfile {
 			}
 			return lineBoundaries;
 		}
+
+		public List<Integer> retrieveBaselines() {
+			List<Integer> baselines = new ArrayList<Integer>();
+			for (int i = 0; i < segments.size(); i++) {
+				if (segments.get(i).getFirst() == VerticalModelStateType.BASE) {
+					if (i >= segments.size()-1) {
+						baselines.add(totalSize);
+					} else {
+						baselines.add(segments.get(i+1).getSecond());
+					}
+				}
+			}
+			return baselines;
+		}
 	}
 
 	public final double[][] image;
@@ -102,7 +116,7 @@ public class VerticalProfile {
 	public VerticalModel runEM(int numItrs, int numRestarts, EMCallback callback) {
 		double bestLogProb = Double.NEGATIVE_INFINITY;
 		VerticalModel bestModel = null;
-		Random rand = new Random();
+		Random rand = new Random(0);
 		for (int r=0; r<numRestarts; ++r) {
 			VerticalModel model = VerticalModel.getRandomlyInitializedModel(image.length, rand);
 			double logNormalizer = Double.NEGATIVE_INFINITY;
@@ -112,7 +126,7 @@ public class VerticalProfile {
 				double[][] betas = computeBetas(model, false);
 				logNormalizer = Double.NEGATIVE_INFINITY;
 				for (int state = 0; state < model.numStates(); state++) {
-					logNormalizer = SloppyMath.logAdd(logNormalizer, alphas[alphas.length-1][state]);
+					logNormalizer = m.logAdd(logNormalizer, alphas[alphas.length-1][state]);
 				}
 				SuffStats suffStats = new SuffStats();
 				for (int state = 0; state < model.numStates(); state++) {
@@ -225,7 +239,7 @@ public class VerticalProfile {
 		if (max) {
 			return Math.max(a, b);
 		} else {
-			return SloppyMath.logAdd(a, b);
+			return m.logAdd(a, b);
 		}
 	}
 

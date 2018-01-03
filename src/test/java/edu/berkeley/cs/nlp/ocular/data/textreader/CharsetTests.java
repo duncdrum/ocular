@@ -1,7 +1,6 @@
 package edu.berkeley.cs.nlp.ocular.data.textreader;
 
 import static edu.berkeley.cs.nlp.ocular.data.textreader.Charset.*;
-import static edu.berkeley.cs.nlp.ocular.util.Tuple2.Tuple2;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 
@@ -37,54 +36,72 @@ public class CharsetTests {
 		assertEquals("ñ", unescapeChar("\\~n"));
 		assertEquals("q" + TILDE_COMBINING, unescapeChar("q" + TILDE_COMBINING));
 		assertEquals("q" + TILDE_COMBINING, unescapeChar("\\~q"));
-		//assertEquals("ı", unescapeChar("\\ii"));
+		assertEquals("ı", unescapeChar("\\ii"));
+		assertEquals("ı", unescapeChar("ı"));
 		
-		assertEquals("\\\\", unescapeChar("\\\\"));
+		assertEquals("\\", unescapeChar("\\\\"));
 	}
 
 	@Test
-	public void test_unescapeCharPrecomposedOnly() {
-		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + "ñ", unescapeCharPrecomposedOnly("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING));
-		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + "ñ", unescapeCharPrecomposedOnly("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
-		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + TILDE_ESCAPE + "q", unescapeCharPrecomposedOnly("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
+	public void test_unescapeChar_precomposedOnly() {
+		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + "ñ", unescapeChar("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING, true));
+		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + "ñ", unescapeChar("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING, true));
+		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + TILDE_ESCAPE + "q", unescapeChar("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING, true));
 
-		assertEquals("ñ", unescapeCharPrecomposedOnly("ñ"));
-		assertEquals("ñ", unescapeCharPrecomposedOnly("\\~n"));
-		assertEquals("\\~q", unescapeCharPrecomposedOnly("q" + TILDE_COMBINING));
-		assertEquals("\\~q", unescapeCharPrecomposedOnly("\\~q"));
-		//assertEquals("ı", unescapeCharPrecomposedOnly("\\ii"));
+		assertEquals("ñ", unescapeChar("ñ", true));
+		assertEquals("ñ", unescapeChar("\\~n", true));
+		assertEquals("\\~q", unescapeChar("q" + TILDE_COMBINING, true));
+		assertEquals("\\~q", unescapeChar("\\~q", true));
+		assertEquals("ı", unescapeChar("\\ii", true));
+		assertEquals("ı", unescapeChar("ı", true));
 		
-		assertEquals("\\\\", unescapeCharPrecomposedOnly("\\\\"));
+		assertEquals("\\", unescapeChar("\\\\", true));
 	}
 
 	@Test
-	public void test_escapeCharSeparateDiacritics() {
-		assertEquals(asList(GRAVE_ESCAPE, ACUTE_ESCAPE, DIAERESIS_ESCAPE, MACRON_ESCAPE, TILDE_ESCAPE), escapeCharSeparateDiacritics("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING)._1);
-		assertEquals(asList(GRAVE_ESCAPE, ACUTE_ESCAPE, DIAERESIS_ESCAPE, MACRON_ESCAPE, TILDE_ESCAPE), escapeCharSeparateDiacritics("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING)._1);
-		assertEquals(asList(GRAVE_ESCAPE, ACUTE_ESCAPE, DIAERESIS_ESCAPE, MACRON_ESCAPE, TILDE_ESCAPE), escapeCharSeparateDiacritics("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING)._1);
+	public void test_fullyEscapeChar() {
+		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + TILDE_ESCAPE + "n", fullyEscapeChar("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING));
+		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + TILDE_ESCAPE + "n", fullyEscapeChar("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
+		assertEquals(GRAVE_ESCAPE + ACUTE_ESCAPE + DIAERESIS_ESCAPE + MACRON_ESCAPE + TILDE_ESCAPE + "q", fullyEscapeChar("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
 
-		assertEquals(asList(), escapeCharSeparateDiacritics("t")._1);
-		assertEquals(asList(TILDE_ESCAPE), escapeCharSeparateDiacritics("ñ")._1);
-		assertEquals(asList(TILDE_ESCAPE), escapeCharSeparateDiacritics("\\~n")._1);
-		assertEquals(asList(TILDE_ESCAPE), escapeCharSeparateDiacritics("q̃")._1);
-		assertEquals(asList(TILDE_ESCAPE), escapeCharSeparateDiacritics("q" + TILDE_COMBINING)._1);
-		assertEquals(asList(TILDE_ESCAPE), escapeCharSeparateDiacritics("\\~q")._1);
-		assertEquals(asList(), escapeCharSeparateDiacritics("\\\\")._1);
+		assertEquals("\\~n", fullyEscapeChar("ñ"));
+		assertEquals("\\~n", fullyEscapeChar("\\~n"));
+		assertEquals("\\~q", fullyEscapeChar("q" + TILDE_COMBINING));
+		assertEquals("\\~q", fullyEscapeChar("\\~q"));
+		assertEquals("\\ii", fullyEscapeChar("\\ii"));
+		assertEquals("\\ii", fullyEscapeChar("ı"));
+		
+		assertEquals("\\\\", fullyEscapeChar("\\\\"));
+	}
 
-		assertEquals("n", escapeCharSeparateDiacritics("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING)._2);
-		assertEquals("n", escapeCharSeparateDiacritics("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING)._2);
-		assertEquals("q", escapeCharSeparateDiacritics("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING)._2);
+	@Test
+	public void test_normalizeCharSeparateDiacritics() {
+		assertEquals(asList(TILDE_COMBINING, MACRON_COMBINING, DIAERESIS_COMBINING, ACUTE_COMBINING, GRAVE_COMBINING), normalizeCharSeparateDiacritics("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING)._2);
+		assertEquals(asList(TILDE_COMBINING, MACRON_COMBINING, DIAERESIS_COMBINING, ACUTE_COMBINING, GRAVE_COMBINING), normalizeCharSeparateDiacritics("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING)._2);
+		assertEquals(asList(TILDE_COMBINING, MACRON_COMBINING, DIAERESIS_COMBINING, ACUTE_COMBINING, GRAVE_COMBINING), normalizeCharSeparateDiacritics("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING)._2);
 
-		assertEquals("t", escapeCharSeparateDiacritics("t")._2);
-		assertEquals("n", escapeCharSeparateDiacritics("ñ")._2);
-		assertEquals("n", escapeCharSeparateDiacritics("\\~n")._2);
-		assertEquals("q", escapeCharSeparateDiacritics("q̃")._2);
-		assertEquals("q", escapeCharSeparateDiacritics("q" + TILDE_COMBINING)._2);
-		assertEquals("q", escapeCharSeparateDiacritics("\\~q")._2);
-		assertEquals("\\\\", escapeCharSeparateDiacritics("\\\\")._2);
+		assertEquals(asList(), normalizeCharSeparateDiacritics("t")._2);
+		assertEquals(asList(TILDE_COMBINING), normalizeCharSeparateDiacritics("ñ")._2);
+		assertEquals(asList(TILDE_COMBINING), normalizeCharSeparateDiacritics("\\~n")._2);
+		assertEquals(asList(TILDE_COMBINING), normalizeCharSeparateDiacritics("q̃")._2);
+		assertEquals(asList(TILDE_COMBINING), normalizeCharSeparateDiacritics("q" + TILDE_COMBINING)._2);
+		assertEquals(asList(TILDE_COMBINING), normalizeCharSeparateDiacritics("\\~q")._2);
+		assertEquals(asList(), normalizeCharSeparateDiacritics("\\\\")._2);
+
+		assertEquals("n", normalizeCharSeparateDiacritics("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING)._1);
+		assertEquals("n", normalizeCharSeparateDiacritics("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING)._1);
+		assertEquals("q", normalizeCharSeparateDiacritics("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING)._1);
+
+		assertEquals("t", normalizeCharSeparateDiacritics("t")._1);
+		assertEquals("n", normalizeCharSeparateDiacritics("ñ")._1);
+		assertEquals("n", normalizeCharSeparateDiacritics("\\~n")._1);
+		assertEquals("q", normalizeCharSeparateDiacritics("q̃")._1);
+		assertEquals("q", normalizeCharSeparateDiacritics("q" + TILDE_COMBINING)._1);
+		assertEquals("q", normalizeCharSeparateDiacritics("\\~q")._1);
+		assertEquals("\\\\", normalizeCharSeparateDiacritics("\\\\")._1);
 		
 		try {
-			Tuple2<List<String>,String> r = escapeCharSeparateDiacritics(MACRON_ESCAPE + "" + TILDE_COMBINING);
+			Tuple2<String,List<String>> r = normalizeCharSeparateDiacritics(MACRON_ESCAPE + "" + TILDE_COMBINING);
 			fail("Exception expected, found: ["+r+"]");
 		} catch (RuntimeException e) {
 			//assertEquals("Character contains only escape codes!", e.getMessage());
@@ -107,26 +124,32 @@ public class CharsetTests {
 	}
 
 	@Test
-	public void test_escapeChar() {
-		assertEquals("t", escapeChar("t"));
-		assertEquals("\\~q", escapeChar("q̃"));
-		assertEquals("\\~q", escapeChar("q" + TILDE_COMBINING));
-		assertEquals("\\~q", escapeChar("\\~q"));
-		assertEquals("\\~n", escapeChar("ñ"));
-		assertEquals("\\~n", escapeChar("\\~n"));
-		assertEquals("\\'a", escapeChar("á"));
+	public void test_normalizeChar() {
+		assertEquals("t", normalizeChar("t"));
+		assertEquals("q" + TILDE_COMBINING, normalizeChar("q̃"));
+		assertEquals("q" + TILDE_COMBINING, normalizeChar("q" + TILDE_COMBINING));
+		assertEquals("q" + TILDE_COMBINING, normalizeChar("\\~q"));
+		assertEquals("n" + TILDE_COMBINING, normalizeChar("ñ"));
+		assertEquals("n" + TILDE_COMBINING, normalizeChar("\\~n"));
+		assertEquals("a" + ACUTE_COMBINING, normalizeChar("á"));
+		assertEquals("ı", normalizeChar("ı"));
+		assertEquals("ı", normalizeChar("\\ii"));
 
-		assertEquals("\\`\\'\\\"\\-\\~n", escapeChar("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING));
-		assertEquals("\\`\\'\\\"\\-\\~n", escapeChar("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
-		assertEquals("\\`\\'\\\"\\-\\~q", escapeChar("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
+		assertEquals("a\u0347", normalizeChar("a\u0347"));
 		
-		assertEquals("\\\\", escapeChar("\\\\"));
+		assertEquals("n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING + ACUTE_COMBINING + GRAVE_COMBINING, normalizeChar("\\`\\'ñ" + MACRON_COMBINING + DIAERESIS_COMBINING));
+		assertEquals("n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING + ACUTE_COMBINING + GRAVE_COMBINING, normalizeChar("\\`\\'n" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
+		assertEquals("q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING + ACUTE_COMBINING + GRAVE_COMBINING, normalizeChar("\\`\\'q" + TILDE_COMBINING + MACRON_COMBINING + DIAERESIS_COMBINING));
+		
+		assertEquals("\\\\", normalizeChar("\\\\"));
 	}
 
 	@Test
-	public void test_readCharAt() {
-		//String s1 = "ing th\\~q || | follies of thõsè, who éither ``sæek'' out th\\\"os\\`e wæys \"and\" means, which either are sq̃uccess lessons";
-		assertEquals(Tuple2("\\\\", 2), readCharAt("this\\\\that", 4));
+	public void test_readNormalizeCharacters() {
+		assertEquals(asList("a", "b\u0311", "c", "d"), readNormalizeCharacters("ab\u0311cd"));
+		assertEquals(asList("a", "b\uFE20", "c\uFE21", "d"), readNormalizeCharacters("ab\uFE20c\uFE21d"));
+		assertEquals(asList("a", "b\u0361", "c", "d"), readNormalizeCharacters("ab\u0361cd"));
+		assertEquals(asList("t", "a", "u\u0361", "g", "a", "a", "m"), readNormalizeCharacters("tau͡gaam"));
 	}
 
 }

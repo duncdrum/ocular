@@ -16,7 +16,7 @@ Its primary features are:
 * Ability to handle noisy documents: inconsistent inking, spacing, vertical alignment, etc.
 * Support for multilingual documents, including those that have considerable word-level code-switching.
 * Unsupervised learning of orthographic variation patterns including archaic spellings and printer shorthand.
-* Simultaneous, joint transcription into both diplomatic (literal) and normalized forms, the first OCR system of its kind.
+* Simultaneous, joint transcription into both diplomatic (literal) and normalized forms.
 
 It is described in the following publications:
 
@@ -64,7 +64,7 @@ Continued development of Ocular is supported in part by a [Digital Humanities Im
 
 ### Obtaining Ocular
 
-The easiest way to get the Ocular software is to download the self-contained jar from http://www.cs.utexas.edu/~dhg/maven-repository/snapshots/edu/berkeley/cs/nlp/ocular/0.3-SNAPSHOT/ocular-0.3-SNAPSHOT-with_dependencies.jar
+The easiest way to get the Ocular software is to download the self-contained jar from http://www.dhgarrette.com/maven-repository/snapshots/edu/berkeley/cs/nlp/ocular/0.3-SNAPSHOT/ocular-0.3-SNAPSHOT-with_dependencies.jar
 
 Once you have this jar, you will be able to run Ocular according to the instructions below in the [Using Ocular](#using-ocular) section; the code in this repository is not a requirement if all you'd like to do is run the software.
 
@@ -98,10 +98,10 @@ Alternatively, if you do not wish to create the entire jar, you can run `make_ru
 
   To incorporate Ocular into a larger project, you may use a dependency management system like Maven or SBT with the following information:
 
-    * Repository location: http://www.cs.utexas.edu/~dhg/maven-repository/snapshots
-    * Group ID: edu.berkeley.cs.nlp
-    * Artifact ID: ocular
-    * Version: 0.3-SNAPSHOT
+    Repository location: http://www.dhgarrette.com/maven-repository/snapshots
+    Group ID: edu.berkeley.cs.nlp
+    Artifact ID: ocular
+    Version: 0.3-SNAPSHOT
     
 
 
@@ -239,17 +239,21 @@ Required.
 
 ##### Additional Options
 
+* `-minCharCount`:
+Number of times the character must be seen in order to be included.
+Default: 10
+
 * `-insertLongS`:
 Automatically insert "long s" characters into the language model training data?
 Default: false
 
+* `-charNgramLength`:
+LM character n-gram length. If just one language is used, or if all languages should use the same value, just give an integer.  If languages can have different values, give them as comma-separated language/integer pairs: "english->6,spanish->4,french->4"; be sure to wrap the whole string with "quotes".
+Default: 6
+
 * `-alternateSpellingReplacementPaths`:
 Paths to Alternate Spelling Replacement files. If just a simple path is given, the replacements will be applied to all languages.  For language-specific replacements, give multiple comma-separated language/path pairs: "english->rules/en.txt,spanish->rules/sp.txt,french->rules/fr.txt". Be sure to wrap the whole string with "quotes". Any languages for which no replacements are need can be safely ignored.
 Default: No alternate spelling replacements.
-
-* `-charN`:
-LM character n-gram length.
-Default: 6
 
 ##### Rarely Used Options
 
@@ -356,6 +360,10 @@ Default: false
 * `-outputPath`:
 Path of the directory that will contain output transcriptions.
 Required.
+
+* `-outputFormats`:
+Output formats to be generated. Choose from one or multiple of {dipl,norm,normlines,comp,html,alto}, comma-separated.  dipl = diplomatic, norm = normalized (lines joined), normlines = normalized (separate lines), comp = comparisons.
+Default: dipl,norm if -allowGlyphSubstitution=true; dipl otherwise.
 
 * `-outputFontPath`:
 Path to write the learned font file to.
@@ -540,6 +548,10 @@ Default: false
 * `-outputPath`:
 Path of the directory that will contain output transcriptions.
 Required.
+
+* `-outputFormats`:
+Output formats to be generated. Choose from one or multiple of {dipl,norm,normlines,comp,html,alto}, comma-separated.  dipl = diplomatic, norm = normalized (lines joined), normlines = normalized (separate lines), comp = comparisons.
+Default: dipl,norm if -allowGlyphSubstitution=true; dipl otherwise.
 
 ##### Additional Options
 

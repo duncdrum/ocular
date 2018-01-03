@@ -4,9 +4,12 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
-import fig.Option;
-import fileio.f;
+import tberg.murphy.fig.Option;
+import tberg.murphy.fileio.f;
 
+/**
+ * @author Dan Garrette (dhgarrette@gmail.com)
+ */
 public abstract class LineExtractionOptions extends OcularRunnable {
 
 	// Main Options

@@ -25,7 +25,7 @@ import edu.berkeley.cs.nlp.ocular.preprocessing.LineExtractor;
 import edu.berkeley.cs.nlp.ocular.preprocessing.Straightener;
 import edu.berkeley.cs.nlp.ocular.util.FileUtil;
 import static edu.berkeley.cs.nlp.ocular.util.CollectionHelper.last;
-import fileio.f;
+import tberg.murphy.fileio.f;
 
 /**
  * A document that reads a file only as it is needed (and then stores
@@ -61,35 +61,37 @@ public abstract class LazyRawImageDocument implements Document {
 	final public PixelType[][][] loadLineImages() {
 	  if (observations == null) { // file has already been loaded in this Ocular run
 		    if (extractedLinesPath == null) { // no pre-extraction path given
-		    	doLoadObservationsFromFile(); // load data from original file
+		    	observations = doLoadObservationsFromFile(); // load data from original file
 		    }
 		    else { // a pre-extraction path was given
 		      if (extractionFilesPresent()) { // pre-extracted lines exist at the specified location
-		      	doLoadObservationsFromLineExtractionFiles(); // load data from pre-extracted line files
+		      	observations = doLoadObservationsFromLineExtractionFiles(); // load data from pre-extracted line files
 		      }
 		      else { // pre-extraction has not been done yet; do it now.
-		      	doLoadObservationsFromFile(); // load data from original file
-        		doWriteExtractedLines(); // write extracted lines to files so they don't have to be re-extracted next time
+		      	observations = doLoadObservationsFromFile(); // load data from original file
+		      	writeExtractedLineImagesAggregateFile();
+        		writeIndividualExtractedLineImageFiles(); // write extracted lines to files so they don't have to be re-extracted next time
 		      }
 	      }
     }
 	  return observations;
 	}
 
-	private void doLoadObservationsFromFile() {
+	private PixelType[][][] doLoadObservationsFromFile() {
 		BufferedImage bi = doLoadBufferedImage();
 		double[][] levels = ImageUtils.getLevels(bi);
 		double[][] rotLevels = Straightener.straighten(levels);
 		double[][] cropLevels = crop ? Cropper.crop(rotLevels, binarizeThreshold) : rotLevels;
 		Binarizer.binarizeGlobal(binarizeThreshold, cropLevels);
 		List<double[][]> lines = LineExtractor.extractLines(cropLevels);
-		observations = new PixelType[lines.size()][][];
+		PixelType[][][] loadedObservations = new PixelType[lines.size()][][];
 		for (int i = 0; i < lines.size(); ++i) {
-			observations[i] = imageToObservation(ImageUtils.makeImage(lines.get(i)));
+			loadedObservations[i] = imageToObservation(ImageUtils.makeImage(lines.get(i)));
 		}
+		return loadedObservations;
 	}
 	
-	private void doLoadObservationsFromLineExtractionFiles() {
+	private PixelType[][][] doLoadObservationsFromLineExtractionFiles() {
 		System.out.println("Loading pre-extracted line images from " + leLineDir());
 		final Pattern pattern = Pattern.compile("line(\\d+)\\." + ext());
 		File[] lineImageFiles = new File(leLineDir()).listFiles(new FilenameFilter() {
@@ -101,19 +103,20 @@ public abstract class LazyRawImageDocument implements Document {
 		if (lineImageFiles.length == 0) throw new RuntimeException("lineImageFiles.length == 0");
 		Arrays.sort(lineImageFiles);
 
-		observations = new PixelType[lineImageFiles.length][][];
+		PixelType[][][] loadedObservations = new PixelType[lineImageFiles.length][][];
 		for (int i = 0; i < lineImageFiles.length; ++i) {
 			Matcher m = pattern.matcher(lineImageFiles[i].getName());
 			if (m.find() && Integer.valueOf(m.group(1)) != i) throw new RuntimeException("Trying to load lines from "+leLineDir()+" but the file for line "+i+" is missing (found "+m.group(1)+" instead).");
 			String lineImageFile = fullLeLinePath(i);
 			System.out.println("    Loading pre-extracted line from " + lineImageFile);
 			try {
-				observations[i] = imageToObservation(f.readImage(lineImageFile));
+				loadedObservations[i] = imageToObservation(f.readImage(lineImageFile));
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Couldn't read line image from: " + lineImageFile, e);
 			}
 		}
+		return loadedObservations;
 	}
 	
 	private PixelType[][] imageToObservation(BufferedImage image) {
@@ -125,13 +128,25 @@ public abstract class LazyRawImageDocument implements Document {
 		}
 	}
 
-	private void doWriteExtractedLines() {
-		String multilineExtractionImagePath = multilineExtractionImagePath();
+	/**
+	 * Write all extracted lines to a single file for easy viewing
+	 * 
+	 * @multilineExtractionImagePath The path of the file to write to.
+	 */
+	public void writeExtractedLineImagesAggregateFile(String multilineExtractionImagePath) {
 		System.out.println("Writing file line-extraction image to: " + multilineExtractionImagePath);
-		new File(multilineExtractionImagePath).getParentFile().mkdirs();
+		new File(multilineExtractionImagePath).getAbsoluteFile().getParentFile().mkdirs();
 		f.writeImage(multilineExtractionImagePath, Visualizer.renderLineExtraction(observations));
-		
-		// Write individual line files
+	}
+	
+	/**
+	 * Write all extracted lines to a single file for easy viewing
+	 */
+	public void writeExtractedLineImagesAggregateFile() {
+		writeExtractedLineImagesAggregateFile(multilineExtractionImagePath());
+	}
+	
+	public void writeIndividualExtractedLineImageFiles() {
 		new File(leLineDir()).mkdirs();
 		for (int l = 0; l < observations.length; ++l) {
 			PixelType[][] observationLine = observations[l];
@@ -154,7 +169,7 @@ public abstract class LazyRawImageDocument implements Document {
 			try {
 				BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(textFile), "UTF-8"));
 				while (in.ready()) {
-					textList.add(Charset.readCharacters(in.readLine()));
+					textList.add(Charset.readNormalizeCharacters(in.readLine()));
 				}
 				in.close();
 			}

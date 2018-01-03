@@ -3,9 +3,10 @@
 	inputTextPath
 	outputLmPath
 ##### Additional Options
+	minCharCount
 	insertLongS
+	charNgramLength
 	alternateSpellingReplacementPaths
-	charN
 ##### Rarely Used Options
 	removeDiacritics
 	pKeepSameLanguage
@@ -42,6 +43,7 @@
 	numEMIters
 	continueFromLastCompleteIteration
 	outputPath
+	outputFormats
 	outputFontPath
 ##### Additional Options
 	extractedLinesPath
@@ -98,6 +100,7 @@ Glyph substitution is the feature that allows Ocular to use a probabilistic mapp
 	numDocsToSkip
 	skipAlreadyTranscribedDocs
 	outputPath
+	outputFormats
 ##### Additional Options
 	extractedLinesPath
 	failIfAllDocsAlreadyTranscribed

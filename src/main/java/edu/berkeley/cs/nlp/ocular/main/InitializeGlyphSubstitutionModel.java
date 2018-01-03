@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -13,8 +14,8 @@ import java.util.zip.GZIPOutputStream;
 import edu.berkeley.cs.nlp.ocular.gsm.BasicGlyphSubstitutionModel.BasicGlyphSubstitutionModelFactory;
 import edu.berkeley.cs.nlp.ocular.gsm.GlyphSubstitutionModel;
 import edu.berkeley.cs.nlp.ocular.lm.CodeSwitchLanguageModel;
-import fig.Option;
-import indexer.Indexer;
+import tberg.murphy.fig.Option;
+import tberg.murphy.indexer.Indexer;
 
 /**
  * @author Dan Garrette (dhgarrette@gmail.com)
@@ -43,11 +44,11 @@ public class InitializeGlyphSubstitutionModel extends OcularRunnable {
 	}
 
 	protected void validateOptions() {
-		if (inputLmPath == null) throw new IllegalArgumentException("-lmPath not set");
-		if (outputGsmPath == null) throw new IllegalArgumentException("-fontPath not set");
+		if (inputLmPath == null) throw new IllegalArgumentException("-inputLmPath not set");
+		if (outputGsmPath == null) throw new IllegalArgumentException("-outputGsmPath not set");
 	}
 
-	public void run() {
+	public void run(List<String> commandLineArgs) {
 		final CodeSwitchLanguageModel lm = InitializeLanguageModel.readCodeSwitchLM(inputLmPath);
 		final Indexer<String> charIndexer = lm.getCharacterIndexer();
 		final Indexer<String> langIndexer = lm.getLanguageIndexer();
@@ -89,7 +90,7 @@ public class InitializeGlyphSubstitutionModel extends OcularRunnable {
 	public static void writeGSM(GlyphSubstitutionModel gsm, String gsmPath) {
 		ObjectOutputStream out = null;
 		try {
-			new File(gsmPath).getParentFile().mkdirs();
+			new File(gsmPath).getAbsoluteFile().getParentFile().mkdirs();
 			out = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(gsmPath)));
 			out.writeObject(gsm);
 		} catch (Exception e) {

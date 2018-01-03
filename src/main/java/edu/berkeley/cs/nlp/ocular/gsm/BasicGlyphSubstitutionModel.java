@@ -15,11 +15,12 @@ import java.util.Set;
 
 import edu.berkeley.cs.nlp.ocular.data.textreader.Charset;
 import edu.berkeley.cs.nlp.ocular.gsm.GlyphChar.GlyphType;
+import edu.berkeley.cs.nlp.ocular.model.DecodeState;
 import edu.berkeley.cs.nlp.ocular.model.TransitionStateType;
 import edu.berkeley.cs.nlp.ocular.model.transition.SparseTransitionModel.TransitionState;
 import edu.berkeley.cs.nlp.ocular.util.ArrayHelper;
 import edu.berkeley.cs.nlp.ocular.util.FileHelper;
-import indexer.Indexer;
+import tberg.murphy.indexer.Indexer;
 
 /**
  * @author Dan Garrette (dhgarrette@gmail.com)
@@ -120,10 +121,10 @@ public class BasicGlyphSubstitutionModel implements GlyphSubstitutionModel {
 			this.addTilde = makeAddTildeMap(charIndexer);
 			this.diacriticDisregardMap = makeDiacriticDisregardMap(charIndexer);
 			
-			this.sCharIndex = charIndexer.getIndex("s");
+			this.sCharIndex = charIndexer.contains("s") ? charIndexer.getIndex("s") : -1;
 			this.longsCharIndex = charIndexer.getIndex(Charset.LONG_S);
-			this.fCharIndex = charIndexer.getIndex("f");
-			this.lCharIndex = charIndexer.getIndex("l");
+			this.fCharIndex = charIndexer.contains("f") ? charIndexer.getIndex("f") : -1;
+			this.lCharIndex = charIndexer.contains("l") ? charIndexer.getIndex("l") : -1;
 			this.hyphenCharIndex = charIndexer.getIndex(Charset.HYPHEN);
 			this.spaceCharIndex = charIndexer.getIndex(Charset.SPACE);
 			
@@ -185,7 +186,6 @@ public class BasicGlyphSubstitutionModel implements GlyphSubstitutionModel {
 			
 			if (glyph == GLYPH_ELISION_TILDE) {
 				if (addTilde.get(lmChar) == null) return 0.0; // an elision-tilde-decorated char must be elision-tilde-decoratable
-				//System.err.println("soeksofek    addTilde.get("+charIndexer.getObject(lmChar)+") = "+charIndexer.getObject(addTilde.get(lmChar)));
 				return gsmSmoothingCount * elisionSmoothingCountMultiplier;
 			}
 			else if (glyph == GLYPH_TILDE_ELIDED) {
@@ -218,7 +218,7 @@ public class BasicGlyphSubstitutionModel implements GlyphSubstitutionModel {
 					return 0.0;
 				else if (lmChar == hyphenCharIndex && glyph == spaceCharIndex) // so that line-break hyphens can be elided
 					return gsmSmoothingCount;
-				else if (canBeReplaced.contains(lmChar) && validSubstitutionChars.contains(glyph))
+				else if (canBeReplaced.contains(lmChar) && validSubstitutionChars.contains(glyph) && activeCharacterSets[language].contains(glyph))
 					return gsmSmoothingCount;
 				else if (lmChar == glyph)
 					return gsmSmoothingCount;
@@ -231,9 +231,9 @@ public class BasicGlyphSubstitutionModel implements GlyphSubstitutionModel {
 		/**
 		 * Traverse the sequence of viterbi states, adding counts
 		 */
-		public void incrementCounts(double[/*language*/][/*lmChar*/][/*glyph*/] counts, List<TransitionState> fullViterbiStateSeq) {
+		public void incrementCounts(double[/*language*/][/*lmChar*/][/*glyph*/] counts, List<DecodeState> fullViterbiStateSeq) {
 			for (int i = 0; i < fullViterbiStateSeq.size(); ++i) {
-				TransitionState currTs = fullViterbiStateSeq.get(i);
+				TransitionState currTs = fullViterbiStateSeq.get(i).ts;
 				TransitionStateType currType = currTs.getType();
 				if (currType == TransitionStateType.TMPL) {
 					int language = currTs.getLanguageIndex();
@@ -326,11 +326,6 @@ public class BasicGlyphSubstitutionModel implements GlyphSubstitutionModel {
 
 		private void printGsmProbs3(int numLanguages, int numChars, int numGlyphs, double[][][] counts, double[][][] probs, int iter, int batchId, String outputFilenameBase) {
 			Set<String> CHARS_TO_PRINT = setUnion(makeSet(" ","-","a","b","c","d",Charset.LONG_S));
-//			for (String c : Charset.LOWERCASE_VOWELS) {
-//				CHARS_TO_PRINT.add(Charset.ACUTE_ESCAPE + c);
-//				CHARS_TO_PRINT.add(Charset.GRAVE_ESCAPE + c);
-//			}
-			
 			StringBuffer sb = new StringBuffer();
 			sb.append("language\tlmChar\tglyph\tcount\tminProb\tprob\n"); 
 			for (int language = 0; language < numLanguages; ++language) {

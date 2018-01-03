@@ -7,12 +7,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import counter.Counter;
-import counter.CounterMap;
+import tberg.murphy.counter.Counter;
+import tberg.murphy.counter.CounterMap;
 import edu.berkeley.cs.nlp.ocular.data.textreader.Charset;
 import edu.berkeley.cs.nlp.ocular.eval.MarkovEditDistanceComputer.EditDistanceParams;
-import tuple.Pair;
-import util.Iterators;
+import tberg.murphy.tuple.Pair;
+import tberg.murphy.util.Iterators;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
@@ -67,11 +67,11 @@ public class Evaluator {
 	public static Map<String,EvalSuffStats> getUnsegmentedEval(List<String>[] guessChars, List<String>[] goldChars, boolean charIncludesDiacritic) {
 		Map<String,EvalSuffStats> evals = new HashMap<String,EvalSuffStats>();
 		evals.put("CER, keep punc, allow f->s", new EvalSuffStats(getCERSuffStats(guessChars, goldChars, false, true, charIncludesDiacritic)));
-		evals.put("CER, keep punc", new EvalSuffStats(getCERSuffStats(guessChars, goldChars, false, false, charIncludesDiacritic)));
+		evals.put("CER, keep punc  ", new EvalSuffStats(getCERSuffStats(guessChars, goldChars, false, false, charIncludesDiacritic)));
 		evals.put("CER, remove punc, allow f->s", new EvalSuffStats(getCERSuffStats(guessChars, goldChars, true, true, charIncludesDiacritic)));
 		evals.put("CER, remove punc", new EvalSuffStats(getCERSuffStats(guessChars, goldChars, true, false, charIncludesDiacritic)));
 		evals.put("WER, keep punc, allow f->s", new EvalSuffStats(getWERSuffStats(guessChars, goldChars, false, true)));
-		evals.put("WER, keep punc", new EvalSuffStats(getWERSuffStats(guessChars, goldChars, false, false)));
+		evals.put("WER, keep punc  ", new EvalSuffStats(getWERSuffStats(guessChars, goldChars, false, false)));
 		evals.put("WER, remove punc, allow f->s", new EvalSuffStats(getWERSuffStats(guessChars, goldChars, true, true)));
 		evals.put("WER, remove punc", new EvalSuffStats(getWERSuffStats(guessChars, goldChars, true, false)));
 		return evals;
@@ -232,7 +232,7 @@ public class Evaluator {
 
 	private static String splitOutPunc(String str) {
 		StringBuffer buf = new StringBuffer();
-		for (String c: Charset.readCharacters(str)) {
+		for (String c: Charset.readNormalizeCharacters(str)) {
 			if (!Charset.isPunctuationChar(c)) buf.append(c);
 		}
 		return normalizeWhitespace(buf.toString());

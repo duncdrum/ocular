@@ -1,6 +1,6 @@
 package edu.berkeley.cs.nlp.ocular.lm;
 
-import indexer.Indexer;
+import tberg.murphy.indexer.Indexer;
 
 import java.util.Set;
 
@@ -34,6 +34,10 @@ public class UniformLanguageModel implements SingleLanguageModel {
 		return activeCharacters;
 	}
 
+	public int[] shrinkContext(int[] context) {
+		return context;
+	}
+	
 	public boolean containsContext(int[] context) {
 		return true;
 	}

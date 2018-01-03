@@ -11,6 +11,8 @@ import edu.berkeley.cs.nlp.ocular.lm.LanguageModel;
 public interface SingleLanguageModel extends LanguageModel, Serializable {
 
 	public Set<Integer> getActiveCharacters();
+	public int getMaxOrder();
+	public int[] shrinkContext(int[] originalContext);
 	public boolean containsContext(int[] context);
 	
 }

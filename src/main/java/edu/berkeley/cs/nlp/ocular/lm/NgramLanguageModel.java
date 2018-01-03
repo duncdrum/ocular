@@ -8,7 +8,9 @@ import java.util.Set;
 import edu.berkeley.cs.nlp.ocular.data.textreader.CharIndexer;
 import edu.berkeley.cs.nlp.ocular.data.textreader.Charset;
 import edu.berkeley.cs.nlp.ocular.data.textreader.TextReader;
-import indexer.Indexer;
+import edu.berkeley.cs.nlp.ocular.util.ArrayHelper;
+import edu.berkeley.cs.nlp.ocular.util.CollectionHelper;
+import tberg.murphy.indexer.Indexer;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
@@ -34,6 +36,7 @@ public class NgramLanguageModel implements SingleLanguageModel {
 		this.charIndexer = charIndexer;
 		this.countDbs = countDbs;
 		this.maxOrder = countDbs.length;
+		if (maxOrder <= 0) throw new RuntimeException("maxOrder must be greater than zero.");
 		this.type = type;
 		this.lmPower = lmPower;
 		this.allContextsSet = new HashSet<LongArrWrapper>();
@@ -52,11 +55,17 @@ public class NgramLanguageModel implements SingleLanguageModel {
 	}
 
 	public static NgramLanguageModel buildFromText(String fileName, int maxNumLines, int maxOrder, LMType type, double lmPower, TextReader textReader) {
+		return buildFromText(CollectionHelper.makeList(fileName), maxNumLines, maxOrder, type, lmPower, textReader);
+	}
+
+	public static NgramLanguageModel buildFromText(List<String> fileNames, int maxNumLines, int maxOrder, LMType type, double lmPower, TextReader textReader) {
 		CorpusCounter counter = new CorpusCounter(maxOrder);
 		Set<Integer> activeCharacters = counter.getActiveCharacters();
 		Indexer<String> charIndexer = new CharIndexer();
-		counter.countRecursive(fileName, maxNumLines, charIndexer, textReader);
-		for (String c : Charset.UNIV_PUNC) activeCharacters.add(charIndexer.getIndex(c));
+		for (String fileName : fileNames) {
+			counter.countRecursive(fileName, maxNumLines, charIndexer, textReader);
+		}
+		activeCharacters.add(charIndexer.getIndex(Charset.SPACE));
 		charIndexer.lock();
 		counter.printStats(-1);
 		return new NgramLanguageModel(charIndexer, counter.getCounts(), activeCharacters, type, lmPower);
@@ -78,6 +87,21 @@ public class NgramLanguageModel implements SingleLanguageModel {
 		return maxOrder;
 	}
 
+	public double getLmPower() {
+		return lmPower;
+	}
+
+	public int[] shrinkContext(int[] originalContext) {
+		int[] newContext = originalContext;
+		if (newContext.length > maxOrder - 1) {
+			newContext = ArrayHelper.takeRight(newContext, maxOrder - 1);
+		}
+		while (!containsContext(newContext) && newContext.length > 0) {
+			newContext = ArrayHelper.takeRight(newContext, newContext.length - 1);
+		}
+		return newContext;
+	}
+	
 	public boolean containsContext(int[] context) {
 		if (context.length == 0)
 			return true;

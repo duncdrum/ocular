@@ -8,6 +8,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import edu.berkeley.cs.nlp.ocular.data.Document;
 import edu.berkeley.cs.nlp.ocular.data.LazyRawImageLoader;
@@ -22,8 +23,8 @@ import edu.berkeley.cs.nlp.ocular.lm.CodeSwitchLanguageModel;
 import edu.berkeley.cs.nlp.ocular.model.DecoderEM;
 import edu.berkeley.cs.nlp.ocular.train.FontTrainer;
 import edu.berkeley.cs.nlp.ocular.util.FileUtil;
-import fig.Option;
-import indexer.Indexer;
+import tberg.murphy.fig.Option;
+import tberg.murphy.indexer.Indexer;
 
 /**
  * @author Taylor Berg-Kirkpatrick (tberg@eecs.berkeley.edu)
@@ -58,7 +59,9 @@ public class Transcribe extends FonttrainTranscribeShared {
 		if (!(updateFont == (outputFontPath != null))) throw new IllegalArgumentException("-updateFont is not as expected");
 	}
 
-	public void run() {
+	public void run(List<String> commandLineArgs) {
+		Set<OutputFormat> outputFormats = parseOutputFormats();
+		
 		CodeSwitchLanguageModel initialLM = loadInputLM();
 		Font initialFont = loadInputFont();
 		BasicGlyphSubstitutionModelFactory gsmFactory = makeGsmFactory(initialLM);
@@ -70,7 +73,7 @@ public class Transcribe extends FonttrainTranscribeShared {
 		DecoderEM decoderEM = makeDecoder(charIndexer);
 
 		boolean evalCharIncludesDiacritic = true;
-		SingleDocumentEvaluatorAndOutputPrinter documentOutputPrinterAndEvaluator = new BasicSingleDocumentEvaluatorAndOutputPrinter(charIndexer, langIndexer, allowGlyphSubstitution, evalCharIncludesDiacritic);
+		SingleDocumentEvaluatorAndOutputPrinter documentOutputPrinterAndEvaluator = new BasicSingleDocumentEvaluatorAndOutputPrinter(charIndexer, langIndexer, allowGlyphSubstitution, evalCharIncludesDiacritic, commandLineArgs);
 		
 		List<String> inputDocPathList = getInputDocPathList();
 		List<Document> inputDocuments = LazyRawImageLoader.loadDocuments(inputDocPathList, extractedLinesPath, numDocs, numDocsToSkip, uniformLineHeight, binarizeThreshold, crop);
@@ -109,15 +112,16 @@ public class Transcribe extends FonttrainTranscribeShared {
 					gsmFactory, documentOutputPrinterAndEvaluator,
 					0, updateDocBatchSize > 0 ? updateDocBatchSize : inputDocuments.size(), true, false,
 					numMstepThreads,
-					newInputDocPath, outputPath,
-					evalSetEvaluator, Integer.MAX_VALUE, evalBatches);
+					newInputDocPath, outputPath, outputFormats,
+					evalSetEvaluator, Integer.MAX_VALUE, evalBatches,
+					skipFailedDocs);
 		}
 		else {
 			//
 			// Transcribe with fixed parameters
 			//
 			System.out.println("Transcribing input data      " + (new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(Calendar.getInstance().getTime())));
-			MultiDocumentTranscriber transcriber = new BasicMultiDocumentTranscriber(inputDocuments, newInputDocPath, outputPath, decoderEM, documentOutputPrinterAndEvaluator, charIndexer);
+			MultiDocumentTranscriber transcriber = new BasicMultiDocumentTranscriber(inputDocuments, newInputDocPath, outputPath, outputFormats, decoderEM, documentOutputPrinterAndEvaluator, charIndexer, skipFailedDocs);
 			transcriber.transcribe(initialFont, initialLM, initialGSM);
 		}
 	}

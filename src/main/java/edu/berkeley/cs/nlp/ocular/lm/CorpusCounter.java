@@ -1,6 +1,6 @@
 package edu.berkeley.cs.nlp.ocular.lm;
 
-import indexer.Indexer;
+import tberg.murphy.indexer.Indexer;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -104,6 +104,8 @@ public class CorpusCounter {
       int[] indexedLine = new int[chars.size()];
       int t = 0;
       for (String currChar : chars) {
+        if ("\\".equals(currChar))
+          currChar = "\\\\";
         if (charIndexer.locked() && !charIndexer.contains(currChar)) {
           // TODO: Change if we want to use UNK instead of -1
           indexedLine[t++] = -1; // charIndexer.getIndex("UNK");
@@ -173,7 +175,7 @@ public class CorpusCounter {
   }
 
   private void incrementCounts(int[] ngramArr, int order) {
-    assert order >= 1;
+    if (order < 1) throw new RuntimeException("order < 1.  was order=" + order);
     // Increment token and type counts for the highest-order n-gram
     // Lower-order token counts that involve this order of n-gram are stored
     // and indexed in lower-order count databases, but incremented here
